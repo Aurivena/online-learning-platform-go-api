@@ -1,3 +1,5 @@
+-- +goose Up
+-- +goose StatementBegin
 CREATE TYPE slide_variation as ENUM ('TEXT','VIDEO_URL','TEST','FILE');
 
 CREATE TABLE courses
@@ -165,3 +167,10 @@ SELECT setval('organizations_id_seq', (SELECT MAX(id) FROM organizations));
 SELECT setval('courses_id_seq', (SELECT MAX(id) FROM courses));
 SELECT setval('modules_id_seq', (SELECT MAX(id) FROM modules));
 SELECT setval('slides_id_seq', (SELECT MAX(id) FROM slides));
+
+-- +goose StatementEnd
+
+-- +goose Down
+DROP TABLE IF EXISTS slides;
+DROP TABLE IF EXISTS modules;
+DROP TABLE IF EXISTS courses;

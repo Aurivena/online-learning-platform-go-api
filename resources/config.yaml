@@ -1,0 +1,21 @@
+minio:
+  url: http://localhost:9000
+  access-key: ${STORAGE_USER}
+  secret-key: ${STORAGE_PASSWORD}
+  bucket: ${STORAGE_BUCKET}
+  endpoint: ${STORAGE_ENDPOINT}
+  sslmode: false
+
+postgres:
+  user: ${POSTGRES_USER}
+  password: ${POSTGRES_PASSWORD}
+  database: ${POSTGRES_DATABASE}
+  host: ${POSTGRES_HOST}
+  port: ${POSTGRES_PORT}
+  sslmode: disable
+
+server:
+  addr: ${SERVER_ADDR}
+  port: ${SERVER_PORT}
+jwt:
+  secret: ${JWT_SECRET}
