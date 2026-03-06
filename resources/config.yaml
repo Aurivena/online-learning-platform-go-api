@@ -1,5 +1,5 @@
 minio:
-  url: http://localhost:9000
+  url: ${SERVER_ADDR}:${SERVER_PORT}
   access-key: ${STORAGE_USER}
   secret-key: ${STORAGE_PASSWORD}
   bucket: ${STORAGE_BUCKET}

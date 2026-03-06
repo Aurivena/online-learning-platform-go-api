@@ -9,7 +9,8 @@ CREATE TABLE accounts
     password_hash VARCHAR(255) NOT NULL,
     role          VARCHAR(50)  NOT NULL,
     username      VARCHAR(125),
-    created_at    timestamp default now()
+    created_at    timestamp default now(),
+    updated_at    timestamp default now()
 );
 
 CREATE TABLE refresh_tokens
