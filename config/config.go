@@ -13,9 +13,7 @@ type Config struct {
 	Minio    pkg.MinioConfig    `yaml:"minio"`
 	Postgres pkg.PostgresConfig `yaml:"postgres"`
 	Server   pkg.Server         `yaml:"server"`
-	Jwt      struct {
-		JwtSecret string `yaml:"jwt_secret"`
-	} `yaml:"jwt"`
+	Token    pkg.TokenConfig    `yaml:"token"`
 }
 
 func NewConfig() (*Config, error) {

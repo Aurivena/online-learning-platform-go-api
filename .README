@@ -41,6 +41,4 @@ postgres:
 server:
   addr: ${SERVER_ADDR}
   port: ${SERVER_PORT}
-jwt:
-  secret: ${JWT_SECRET}
 ```
