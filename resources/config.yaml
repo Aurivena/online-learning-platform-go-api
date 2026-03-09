@@ -17,5 +17,5 @@ postgres:
 server:
   addr: ${SERVER_ADDR}
   port: ${SERVER_PORT}
-  access-token-duration: 60*15
-  refresh-token-duration: 3600*24*7*2
+  access-token: ${ACCESS_TOKEN}
+  refresh-token: ${REFRESH_TOKEN}

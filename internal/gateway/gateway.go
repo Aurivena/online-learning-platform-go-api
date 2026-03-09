@@ -1,7 +1,7 @@
 package gateway
 
 import (
-	"online-learning-platform-go-api/internal/pkg"
+	"online-learning-platform-go-api/config"
 	"strings"
 	"time"
 
@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewGateway(cfg pkg.Server) *gin.Engine {
+func NewGateway(cfg config.Server) *gin.Engine {
 	gHttp := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
 	domain := cfg.Addr + ":" + cfg.Port

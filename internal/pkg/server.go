@@ -3,18 +3,14 @@ package pkg
 import (
 	"log/slog"
 	"net/http"
+	"online-learning-platform-go-api/config"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 )
 
-type Server struct {
-	Addr string
-	Port string
-}
-
-func RunServer(cfg Server, handler http.Handler) {
+func RunServer(cfg config.Server, handler http.Handler) {
 	httpServer := &http.Server{
 		Addr:           cfg.Addr + ":" + cfg.Port,
 		Handler:        handler,

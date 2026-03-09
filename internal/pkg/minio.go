@@ -2,20 +2,13 @@ package pkg
 
 import (
 	"log"
+	"online-learning-platform-go-api/config"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-type MinioConfig struct {
-	AccessKey string `yaml:"access_key"`
-	SecretKey string `yaml:"secret_key"`
-	Bucket    string `yaml:"bucket"`
-	Endpoint  string `yaml:"endpoint"`
-	SSL       bool   `yaml:"sslmode"`
-}
-
-func NewMinioConfig(cfg MinioConfig) (*minio.Client, error) {
+func NewMinioConfig(cfg config.MinioConfig) (*minio.Client, error) {
 	minioClient, err := minio.New(cfg.Endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
 		Secure: cfg.SSL,

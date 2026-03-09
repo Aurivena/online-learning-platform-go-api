@@ -8,11 +8,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type TokenConfig struct {
-	AccessTokenDuration  time.Duration `yaml:"access-token-duration"`
-	RefreshTokenDuration time.Duration `yaml:"refresh-token-duration"`
-}
-
 type Claims struct {
 	UserID uint   `json:"user_id"`
 	Role   string `json:"role"`
