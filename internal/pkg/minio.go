@@ -1,7 +1,7 @@
 package pkg
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -18,7 +18,7 @@ func NewMinioConfig(cfg MinioConfig) (*minio.Client, error) {
 		Secure: cfg.SSL,
 	})
 	if err != nil {
-		log.Fatalln(err)
+		slog.Error("Failed to create Minio client: ", "error", err)
 		return nil, err
 	}
 

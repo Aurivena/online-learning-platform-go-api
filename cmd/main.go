@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log/slog"
 	"online-learning-platform-go-api/internal/pkg"
 	"online-learning-platform-go-api/internal/user/adaptors"
 	"online-learning-platform-go-api/internal/user/usecase"
@@ -24,11 +25,13 @@ func main() {
 		SSL:      cfg.Postgres.SSL,
 	})
 	if err != nil {
+		slog.Error("Failed to connect to PostgreSQL: ", "error", err)
 		return
 	}
 
 	sqlDB, err := gorm.DB()
 	if err != nil {
+		slog.Error("Failed to get SQL DB: ", "error", err)
 		return
 	}
 
