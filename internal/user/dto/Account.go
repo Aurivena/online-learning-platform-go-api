@@ -14,10 +14,10 @@ type RegistrationRequest struct {
 }
 
 type AccountResponse struct {
-	ID        int       `json:"id" example:"1"`
+	ID        uint      `json:"id" example:"1"`
 	Email     string    `json:"email" example:"admin@example.com"`
 	Username  string    `json:"username" example:"admin"`
-	Role      string    `json:"role" example:"admin"`
+	Role      Role      `json:"role" example:"admin"`
 	CreatedAt time.Time `json:"created_at" example:"2023-01-01T00:00:00Z"`
 }
 

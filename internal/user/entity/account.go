@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+const (
+	User = "USER"
+)
+
 type Account struct {
 	ID        uint     `gorm:"primaryKey"`
 	Email     string   `gorm:"unique;not null"`

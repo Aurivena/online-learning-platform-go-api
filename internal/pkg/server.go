@@ -3,16 +3,15 @@ package pkg
 import (
 	"log/slog"
 	"net/http"
-	"online-learning-platform-go-api/config"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 )
 
-func RunServer(cfg config.Server, handler http.Handler) {
+func RunServer(addr, port string, handler http.Handler) {
 	httpServer := &http.Server{
-		Addr:           cfg.Addr + ":" + cfg.Port,
+		Addr:           addr + ":" + port,
 		Handler:        handler,
 		MaxHeaderBytes: 1 << 20,
 		ReadTimeout:    60 * time.Second,

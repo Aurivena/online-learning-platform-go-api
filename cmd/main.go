@@ -2,6 +2,8 @@ package main
 
 import (
 	"online-learning-platform-go-api/internal/pkg"
+	"online-learning-platform-go-api/internal/user/adaptors"
+	"online-learning-platform-go-api/internal/user/usecase"
 
 	"online-learning-platform-go-api/config"
 	"online-learning-platform-go-api/internal/gateway"
@@ -13,21 +15,40 @@ func main() {
 		return
 	}
 
-	db, err := pkg.NewPostgresConfig(cfg.Postgres)
+	gorm, err := pkg.NewPostgresConfig(pkg.DBConfig{
+		User:     cfg.Postgres.User,
+		Password: cfg.Postgres.Password,
+		Host:     cfg.Postgres.Host,
+		Port:     cfg.Postgres.Port,
+		DBName:   cfg.Postgres.Database,
+		SSL:      cfg.Postgres.SSL,
+	})
 	if err != nil {
 		return
 	}
 
-	defer db.Close()
-
-	_, err = pkg.NewMinioConfig(cfg.Minio)
+	sqlDB, err := gorm.DB()
 	if err != nil {
 		return
 	}
 
-	handler := gateway.NewGateway(cfg.Server)
+	defer sqlDB.Close()
 
-	go pkg.RunServer(cfg.Server, handler)
+	_, err = pkg.NewMinioConfig(pkg.MinioConfig{
+		AccessKey: cfg.Minio.AccessKey,
+		SecretKey: cfg.Minio.SecretKey,
+		Endpoint:  cfg.Minio.Endpoint,
+		SSL:       cfg.Minio.SSL,
+	})
+	if err != nil {
+		return
+	}
+
+	gateway := gateway.NewGateway(cfg.Server, &gateway.Gateway{
+		User: usecase.NewAccountUseCase(adaptors.NewRepository(gorm)),
+	})
+
+	go pkg.RunServer(cfg.Server.Addr, cfg.Server.Port, gateway)
 
 	pkg.StopServer()
 }

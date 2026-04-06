@@ -17,5 +17,7 @@ postgres:
 server:
   addr: ${SERVER_ADDR}
   port: ${SERVER_PORT}
+
+token:
   access-token: ${ACCESS_TOKEN}
   refresh-token: ${REFRESH_TOKEN}

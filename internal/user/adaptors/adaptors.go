@@ -2,10 +2,10 @@ package adaptors
 
 import "gorm.io/gorm"
 
-type AccountPostgres struct {
+type Repository struct {
 	db *gorm.DB
 }
 
-func NewAccountPostgres(db *gorm.DB) *AccountPostgres {
-	return &AccountPostgres{db: db}
+func NewRepository(db *gorm.DB) *Repository {
+	return &Repository{db: db}
 }

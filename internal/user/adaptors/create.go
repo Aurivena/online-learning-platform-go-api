@@ -1,20 +1,15 @@
 package adaptors
 
 import (
-	"online-learning-platform-go-api/internal/user/dto"
+	"context"
 	"online-learning-platform-go-api/internal/user/entity"
-	"time"
 )
 
-func (a *AccountPostgres) Create(req dto.RegistrationRequest) error {
-	account := entity.Account{
-		Email:     req.Email,
-		Username:  req.Username,
-		Password:  req.Password,
-		Role:      req.Role,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+func (r *Repository) Create(ctx context.Context, account *entity.Account) error {
+	err := r.db.Create(&account).Error
+	if err != nil {
+		return err
 	}
 
-	return a.db.Create(&account).Error
+	return nil
 }
