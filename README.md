@@ -1,3 +1,14 @@
+### Взаимодействие с docker черещ Makefile
+```
+make dc-restart
+make dc-up
+```
+
+### Создание sql файла для goose
+```
+make gcs
+```
+
 ```.env
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=my_secret_password
