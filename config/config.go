@@ -8,7 +8,11 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-var MigrationsDirForPostgres = "../resources/migrations"
+var (
+	MigrationsDirForPostgres = "../resources/migrations"
+	AccessTokenTimestamp     = 0
+	RefreshTokenTimestamp    = 0
+)
 
 type Config struct {
 	Minio    MinioConfig    `yaml:"minio"`

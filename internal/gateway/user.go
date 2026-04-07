@@ -15,14 +15,15 @@ func (g *Gateway) Registration(c *gin.Context) {
 		return
 	}
 
-	accessToken, refreshToken, errResp := g.User.Registration(c, input)
+	account, errResp := g.User.Registration(c, input)
 	if errResp != nil {
 		netsp.SendResponseError(c.Writer, errResp)
 		return
 	}
 
-	c.SetCookie("access_token", accessToken, 0, "", "", false, true)
-	c.SetCookie("refresh_token", refreshToken, 0, "", "", false, true)
+	c.Set("userId", account.ID)
+	c.Set("role", account.Role)
+	c.Next()
 
 	netsp.SendResponseSuccess[any](c.Writer, http.StatusCreated, nil)
 }

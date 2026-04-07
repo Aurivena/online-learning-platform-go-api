@@ -2,6 +2,7 @@ package main
 
 import (
 	"log/slog"
+	"online-learning-platform-go-api/internal/middleware"
 	"online-learning-platform-go-api/internal/pkg"
 	"online-learning-platform-go-api/internal/user/adaptors"
 	"online-learning-platform-go-api/internal/user/usecase"
@@ -47,7 +48,7 @@ func main() {
 		return
 	}
 
-	gateway := gateway.NewGateway(cfg.Server, &gateway.Gateway{
+	gateway := gateway.NewGateway(cfg.Server, middleware.NewMiddleware(&cfg.Token), &gateway.Gateway{
 		User: usecase.NewAccountUseCase(adaptors.NewRepository(gorm)),
 	})
 
