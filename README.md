@@ -26,10 +26,12 @@ STORAGE_ENDPOINT=localhost:9000
 SERVER_ADDR=http://localhost
 SERVER_PORT=8080
 
-
 JWT_SECRET=super_long_secret_key_change_me
 
 CONFIG_PATH=./resources/config.yml
+
+ACCESS_TOKEN=...
+REFRESH_TOKEN=...
 ```
 
 ```config.yaml
@@ -52,4 +54,8 @@ postgres:
 server:
   addr: ${SERVER_ADDR}
   port: ${SERVER_PORT}
+
+token:
+  access-token: ${ACCESS_TOKEN}
+  refresh-token: ${REFRESH_TOKEN}
 ```
