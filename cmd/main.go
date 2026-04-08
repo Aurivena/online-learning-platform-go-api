@@ -2,6 +2,7 @@ package main
 
 import (
 	"log/slog"
+	"online-learning-platform-go-api/internal/di"
 	"online-learning-platform-go-api/internal/middleware"
 	"online-learning-platform-go-api/internal/pkg"
 
@@ -46,7 +47,9 @@ func main() {
 		return
 	}
 
-	router := gateway.SetupRouter(cfg.Server, middleware.NewMiddleware(&cfg.Token), gateway.NewGateway(gorm))
+	provider := di.NewProvider(gorm)
+
+	router := gateway.SetupRouter(cfg.Server, middleware.NewMiddleware(&cfg.Token), gateway.NewGateway(provider))
 
 	go pkg.RunServer(cfg.Server.Addr, cfg.Server.Port, router)
 

@@ -2,24 +2,23 @@ package gateway
 
 import (
 	"online-learning-platform-go-api/config"
+	"online-learning-platform-go-api/internal/di"
 	"online-learning-platform-go-api/internal/middleware"
-	"online-learning-platform-go-api/internal/user/adaptors"
 	"online-learning-platform-go-api/internal/user/usecase"
 	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 type Gateway struct {
 	User *usecase.AccountUseCase
 }
 
-func NewGateway(gorm *gorm.DB) *Gateway {
+func NewGateway(provider *di.Provider) *Gateway {
 	return &Gateway{
-		User: usecase.NewAccountUseCase(adaptors.NewRepository(gorm)),
+		User: provider.User(),
 	}
 }
 

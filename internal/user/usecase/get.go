@@ -11,11 +11,13 @@ func (uc *AccountUseCase) Get(ctx context.Context, id int) (*dto.AccountResponse
 		return nil, err
 	}
 
-	return &dto.AccountResponse{
+	response := dto.AccountResponse{
 		ID:        account.ID,
 		Email:     account.Email,
 		Username:  account.Username,
 		Role:      account.Role,
 		CreatedAt: account.CreatedAt,
-	}, nil
+	}
+
+	return &response, nil
 }

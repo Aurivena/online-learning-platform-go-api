@@ -4,9 +4,13 @@
 make dc-restart
 make dc-up
 ```
-- Создание sql файла для goose
+- Взаимодействие с goose через Makefile
 ```
-make gcs ...
+make gc_create ... -- sql файла для goose
+``` 
+
+```
+make gc_up -- поднимает новые sql файлы
 ```
 
 ### Файлы для запуска проекта

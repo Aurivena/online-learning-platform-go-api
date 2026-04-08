@@ -2,21 +2,19 @@ package usecase
 
 import (
 	"context"
-	"online-learning-platform-go-api/internal/user/adaptors"
-	"online-learning-platform-go-api/internal/user/dto"
 	"online-learning-platform-go-api/internal/user/entity"
 )
 
 type AccountUseCase struct {
-	repo *adaptors.Repository
+	repo AccountRepository
 }
 
-func NewAccountUseCase(repo *adaptors.Repository) *AccountUseCase {
+func NewAccountUseCase(repo AccountRepository) *AccountUseCase {
 	return &AccountUseCase{repo: repo}
 }
 
-type Repository interface {
+type AccountRepository interface {
 	Create(ctx context.Context, account *entity.Account) error
-	Get(ctx context.Context, id int) (dto.AccountResponse, error)
+	Get(ctx context.Context, id int) (*entity.Account, error)
 	Update(ctx context.Context, account *entity.Account) error
 }
