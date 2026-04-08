@@ -1,20 +1,22 @@
 package entity
 
 import (
-	"online-learning-platform-go-api/internal/user/dto"
 	"time"
 )
 
+type Role string
+
 const (
-	User = "USER"
+	RoleUser  Role = "USER"
+	RoleAdmin Role = "ADMIN"
 )
 
 type Account struct {
-	ID        uint     `gorm:"primaryKey"`
-	Email     string   `gorm:"unique;not null"`
-	Username  string   `gorm:"unique;not null"`
-	Password  string   `gorm:"not null"`
-	Role      dto.Role `gorm:"type:varchar(20);not null"`
+	ID        uint   `gorm:"primaryKey"`
+	Email     string `gorm:"unique;not null"`
+	Username  string `gorm:"unique;not null"`
+	Password  string `gorm:"not null"`
+	Role      Role   `gorm:"type:varchar(20);not null"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

@@ -3,6 +3,7 @@ package config
 import (
 	"log/slog"
 	"os"
+	"path/filepath"
 
 	"github.com/joho/godotenv"
 	"go.yaml.in/yaml/v3"
@@ -49,9 +50,14 @@ type TokenConfig struct {
 }
 
 func NewConfig() (*Config, error) {
-	_ = godotenv.Load("../.env")
+	_ = godotenv.Load(findEnvFile())
 
-	data, err := os.ReadFile("../resources/config.yaml")
+	configPath := os.Getenv("CONFIG_PATH")
+	if configPath == "" {
+		configPath = "../resources/config.yaml"
+	}
+
+	data, err := os.ReadFile(configPath)
 	if err != nil {
 		slog.Error(err.Error())
 		return nil, err
@@ -67,4 +73,20 @@ func NewConfig() (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func findEnvFile() string {
+	dir, _ := os.Getwd()
+	for {
+		path := filepath.Join(dir, ".env")
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return ".env"
 }

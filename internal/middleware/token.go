@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"online-learning-platform-go-api/internal/user/entity"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,8 +17,8 @@ const (
 )
 
 type Claims struct {
-	UserID uint   `json:"user_id"`
-	Role   string `json:"role"`
+	UserID uint        `json:"user_id"`
+	Role   entity.Role `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -30,7 +31,7 @@ func (m *Middleware) SetToken(c *gin.Context) {
 	}
 
 	uid := userId.(uint)
-	uRole := role.(string)
+	uRole := role.(entity.Role)
 
 	accessToken, err := generateToken(uid, uRole, accessExp, []byte(m.token.AccessToken))
 	if err != nil {
@@ -38,7 +39,7 @@ func (m *Middleware) SetToken(c *gin.Context) {
 		return
 	}
 
-	refreshToken, err := generateToken(uid, uRole, accessExp, []byte(m.token.RefreshToken))
+	refreshToken, err := generateToken(uid, uRole, refreshExp, []byte(m.token.RefreshToken))
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "failed to generate refresh token"})
 		return
@@ -48,7 +49,7 @@ func (m *Middleware) SetToken(c *gin.Context) {
 	c.SetCookie("refresh_token", refreshToken, int(refreshExp.Seconds()), "/", "", false, true)
 }
 
-func generateToken(userID uint, role string, duration time.Duration, secret []byte) (string, error) {
+func generateToken(userID uint, role entity.Role, duration time.Duration, secret []byte) (string, error) {
 	claims := Claims{
 		UserID: userID,
 		Role:   role,

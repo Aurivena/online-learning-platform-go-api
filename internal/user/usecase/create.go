@@ -34,9 +34,9 @@ func (u *AccountUseCase) Registration(ctx context.Context, dto dto.RegistrationR
 	if err := u.repo.Create(ctx, &account); err != nil {
 		return nil, netsp.BuildError(
 			http.StatusBadRequest,
-			"Token Generation Error",
-			"The access token could not be generated",
-			"Please check the token generation service and try again",
+			"Account Creation Error",
+			"The account could not be created, possibly due to a duplicate email or username",
+			"Please check your data and try again",
 		)
 	}
 	return &account, nil

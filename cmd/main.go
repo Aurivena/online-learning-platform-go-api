@@ -51,7 +51,7 @@ func main() {
 
 	router := gateway.SetupRouter(cfg.Server, middleware.NewMiddleware(&cfg.Token), gateway.NewGateway(provider))
 
-	go pkg.RunServer(cfg.Server.Addr, cfg.Server.Port, router)
+	httpServer := pkg.RunServer(cfg.Server.Addr, cfg.Server.Port, router)
 
-	pkg.StopServer()
+	pkg.StopServer(httpServer)
 }
