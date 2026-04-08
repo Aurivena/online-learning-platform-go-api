@@ -32,17 +32,59 @@ func SetupRouter(cfg config.Server, mw *middleware.Middleware, gateGateway *Gate
 	gHttp.Use(cors.New(cors.Config{
 		AllowOrigins:     allowOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
-		AllowHeaders:     []string{"X-Session-ID", "X-Password", "Content-Type"},
+		AllowHeaders:     []string{"Content-Type"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
 
 	api := gHttp.Group("/api")
 	{
-		authorization := api.Group("/authorization", mw.SetToken)
+		auth := api.Group("/auth", mw.SetToken)
 		{
-			authorization.POST("/login", nil)
-			authorization.POST("/register", gateGateway.Registration)
+			auth.POST("/login", nil)
+			auth.POST("/register", gateGateway.Registration)
+			auth.POST("/logout", nil)
+		}
+
+		account := api.Group("/account")
+		{
+			account.GET("/me", nil)
+		}
+
+		organizations := api.Group("/organizations")
+		{
+			organizations.GET("/", nil)
+			organizations.POST("/", nil)
+			organizations.GET("/:tag", nil)
+			organizations.PUT("/:tag", nil)
+			organizations.DELETE("/:tag", nil)
+
+			courses := organizations.Group("/:id/courses")
+			{
+				courses.GET("/", nil)
+				courses.POST("/", nil)
+				courses.GET("/:courseId", nil)
+				courses.PUT("/:courseId", nil)
+				courses.DELETE("/:courseId", nil)
+
+				modules := courses.Group("/:courseId/modules")
+				{
+					modules.POST("/", nil)
+					modules.GET("/:moduleId", nil)
+					modules.PUT("/:moduleId", nil)
+					modules.DELETE("/:moduleId", nil)
+					modules.PUT("/recorder", nil)
+
+					slides := modules.Group("/:moduleId/slides")
+					{
+						slides.POST("/", nil)
+						slides.GET("/:slideId", nil)
+						slides.PUT("/:slideId", nil)
+						slides.DELETE("/:slideId", nil)
+						slides.PUT("/recorder", nil)
+					}
+				}
+			}
 		}
 	}
 
