@@ -14,3 +14,23 @@ func (r *Repository) Get(ctx context.Context, id int) (*entity.Account, error) {
 
 	return &account, nil
 }
+
+func (r *Repository) GetByEmail(ctx context.Context, email string) (*entity.Account, error) {
+	var account entity.Account
+
+	if err := r.db.Where("email = ?", email).First(&account).Error; err != nil {
+		return nil, err
+	}
+
+	return &account, nil
+}
+
+func (r *Repository) GetByUsername(ctx context.Context, username string) (*entity.Account, error) {
+	var account entity.Account
+
+	if err := r.db.Where("username = ?", username).First(&account).Error; err != nil {
+		return nil, err
+	}
+
+	return &account, nil
+}

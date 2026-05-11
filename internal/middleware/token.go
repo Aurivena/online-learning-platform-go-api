@@ -47,6 +47,9 @@ func (m *Middleware) SetToken(c *gin.Context) {
 
 	c.SetCookie("access_token", accessToken, int(accessExp.Seconds()), "/", "", false, true)
 	c.SetCookie("refresh_token", refreshToken, int(refreshExp.Seconds()), "/", "", false, true)
+
+	c.Set("accessToken", accessToken)
+	c.Set("refreshToken", refreshToken)
 }
 
 func generateToken(userID uint, role entity.Role, duration time.Duration, secret []byte) (string, error) {

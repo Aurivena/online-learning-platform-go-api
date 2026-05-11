@@ -13,6 +13,63 @@ make gc_create ... -- sql файла для goose
 make gc_up -- поднимает новые sql файлы
 ```
 
+### Аутентификация и авторизация
+
+#### Регистрация
+```bash
+POST /api/auth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "username": "username",
+  "password": "password123",
+  "role": "USER"  # или "ADMIN" - роль можно указывать с фронта (внутренний проект)
+}
+```
+
+**Response:**
+```json
+{
+  "code": 0,
+  "data": {
+    "id": 1,
+    "email": "user@example.com",
+    "username": "username",
+    "role": "USER",
+    "access_token": "eyJhbGc...",
+    "refresh_token": "eyJhbGc...",
+    "created_at": "2023-01-01T00:00:00Z"
+  }
+}
+```
+
+#### Авторизация
+```bash
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+**Response:**
+```json
+{
+  "code": 0,
+  "data": {
+    "access_token": "eyJhbGc...",
+    "refresh_token": "eyJhbGc..."
+  }
+}
+```
+
+**Токены возвращаются в:**
+- JSON body (access_token, refresh_token)
+- HTTP cookies (httpOnly, secure)
+
 ### Файлы для запуска проекта
 ```.env
 POSTGRES_USER=postgres

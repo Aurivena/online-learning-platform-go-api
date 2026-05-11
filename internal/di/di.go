@@ -15,6 +15,6 @@ func NewProvider(db *gorm.DB) *Provider {
 	return &Provider{db: db}
 }
 
-func (p *Provider) User() *usecase.AccountUseCase {
+func (p *Provider) User() usecase.AccountUseCaseInterface {
 	return usecase.NewAccountUseCase(adaptors.NewRepository(p.db))
 }

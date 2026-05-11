@@ -13,7 +13,7 @@ import (
 )
 
 type Gateway struct {
-	User *usecase.AccountUseCase
+	User usecase.AccountUseCaseInterface
 }
 
 func NewGateway(provider *di.Provider) *Gateway {
@@ -38,10 +38,10 @@ func SetupRouter(cfg config.Server, mw *middleware.Middleware, gateGateway *Gate
 
 	api := gHttp.Group("/api")
 	{
-		auth := api.Group("/auth", mw.SetToken)
+		auth := api.Group("/auth")
 		{
-			auth.POST("/login", nil)
-			auth.POST("/register", gateGateway.Registration)
+			auth.POST("/register", gateGateway.Registration, mw.SetToken)
+			auth.POST("/login", gateGateway.Login, mw.SetToken)
 			auth.POST("/logout", nil)
 		}
 
