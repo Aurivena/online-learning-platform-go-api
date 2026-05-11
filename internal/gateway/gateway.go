@@ -22,7 +22,7 @@ func NewGateway(provider *di.Provider) *Gateway {
 	}
 }
 
-func SetupRouter(cfg config.Server, mw *middleware.Middleware, gateGateway *Gateway, courseGateway *CourseGateway) *gin.Engine {
+func SetupRouter(cfg config.Server, mw *middleware.Middleware, userGateway *Gateway, orgGateway *OrganizationGateway, courseGateway *CourseGateway) *gin.Engine {
 	gHttp := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
 	domain := cfg.Addr + ":" + cfg.Port
@@ -40,8 +40,8 @@ func SetupRouter(cfg config.Server, mw *middleware.Middleware, gateGateway *Gate
 	{
 		auth := api.Group("/auth")
 		{
-			auth.POST("/register", gateGateway.Registration, mw.SetToken)
-			auth.POST("/login", gateGateway.Login, mw.SetToken)
+			auth.POST("/register", userGateway.Registration, mw.SetToken)
+			auth.POST("/login", userGateway.Login, mw.SetToken)
 			auth.POST("/logout", nil)
 		}
 
@@ -52,11 +52,15 @@ func SetupRouter(cfg config.Server, mw *middleware.Middleware, gateGateway *Gate
 
 		organizations := api.Group("/organizations")
 		{
-			organizations.GET("/", nil)
-			organizations.POST("/", nil)
-			organizations.GET("/:tag", nil)
-			organizations.PUT("/:tag", nil)
-			organizations.DELETE("/:tag", nil)
+			organizations.GET("/", orgGateway.ListAllOrganizations)
+			organizations.POST("/", orgGateway.CreateOrganization)
+			organizations.GET("/my", orgGateway.ListMyOrganizations)
+			organizations.GET("/:id", orgGateway.GetOrganizationByID)
+			organizations.GET("/tag/:tag", orgGateway.GetOrganizationByTag)
+			organizations.PUT("/:id", orgGateway.UpdateOrganization)
+			organizations.DELETE("/:id", orgGateway.DeleteOrganization)
+			organizations.POST("/:id/accounts", orgGateway.AddAccountToOrganization)
+			organizations.DELETE("/:id/accounts", orgGateway.RemoveAccountFromOrganization)
 
 			courses := organizations.Group("/:id/courses")
 			{

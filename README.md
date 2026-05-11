@@ -276,3 +276,131 @@ POST /api/organizations/1/courses/1/modules/1/slides
 # 4. Получить курс со всеми модулями и слайдами
 GET /api/organizations/1/courses/1
 ```
+
+## Организации
+
+Организация - это контейнер для курсов, созданная пользователем-владельцем. Каждая организация может содержать множество пользователей и курсов.
+
+### API Endpoints для организаций
+
+#### Управление организациями
+
+```bash
+# Создать новую организацию (текущий пользователь становится владельцем)
+POST /api/organizations
+{
+  "title": "Название организации",
+  "tag": "ORG_TAG",
+  "description": "Описание организации"
+}
+
+# Список всех организаций
+GET /api/organizations
+
+# Мои организации (где я владелец)
+GET /api/organizations/my
+
+# Получить организацию по ID
+GET /api/organizations/:id
+
+# Получить организацию по тегу
+GET /api/organizations/tag/:tag
+
+# Обновить организацию
+PUT /api/organizations/:id
+{
+  "title": "Новое название",
+  "description": "Новое описание"
+}
+
+# Удалить организацию
+DELETE /api/organizations/:id
+```
+
+#### Управление членами организации
+
+```bash
+# Добавить пользователя в организацию
+POST /api/organizations/:id/accounts
+{
+  "account_id": 1
+}
+
+# Удалить пользователя из организации
+DELETE /api/organizations/:id/accounts
+{
+  "account_id": 1
+}
+```
+
+### Полный пример использования
+
+```bash
+# 1. Зарегистрироваться / Авторизоваться
+POST /api/auth/register
+{
+  "email": "user@example.com",
+  "username": "user",
+  "password": "password123",
+  "role": "ADMIN"
+}
+
+# 2. Создать организацию
+POST /api/organizations
+{
+  "title": "Моя компания",
+  "tag": "MYCOMPANY",
+  "description": "Обучение сотрудников"
+}
+# Response: { "id": 1, "title": "Моя компания", ... }
+
+# 3. Добавить членов в организацию
+POST /api/organizations/1/accounts
+{
+  "account_id": 2
+}
+
+# 4. Создать курс
+POST /api/organizations/1/courses
+{
+  "title": "Введение в Go",
+  "description": "Учимся писать на Go",
+  "organization_id": 1
+}
+# Response: { "id": 1, "title": "Введение в Go", ... }
+
+# 5. Создать модуль
+POST /api/organizations/1/courses/1/modules
+{
+  "title": "Основы Go",
+  "course_id": 1
+}
+
+# 6. Создать слайд
+POST /api/organizations/1/courses/1/modules/1/slides
+{
+  "title": "Переменные и типы",
+  "slide_type": "TEXT",
+  "payload": {
+    "content": "# Переменные в Go\n\nВ Go переменные объявляются с помощью `var`..."
+  }
+}
+
+# 7. Получить полный курс со всеми модулями и слайдами
+GET /api/organizations/1/courses/1
+```
+
+### Структура данных
+
+```
+User (Account)
+├── Organization (владелец)
+│   ├── Members (organization_accounts)
+│   └── Courses
+│       ├── Module 1 (index: 1)
+│       │   ├── Slide 1 (index: 1)
+│       │   ├── Slide 2 (index: 2)
+│       │   └── ...
+│       ├── Module 2 (index: 2)
+│       └── ...
+```

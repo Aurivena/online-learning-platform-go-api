@@ -7,6 +7,9 @@ import (
 	courseAdaptors "online-learning-platform-go-api/internal/course/adaptors"
 	courseUsecase "online-learning-platform-go-api/internal/course/usecase"
 
+	orgAdaptors "online-learning-platform-go-api/internal/organization/adaptors"
+	orgUsecase "online-learning-platform-go-api/internal/organization/usecase"
+
 	"gorm.io/gorm"
 )
 
@@ -20,6 +23,10 @@ func NewProvider(db *gorm.DB) *Provider {
 
 func (p *Provider) User() userUsecase.AccountUseCaseInterface {
 	return userUsecase.NewAccountUseCase(userAdaptors.NewRepository(p.db))
+}
+
+func (p *Provider) Organization() orgUsecase.OrganizationUseCaseInterface {
+	return orgUsecase.NewOrganizationUseCase(orgAdaptors.NewOrganizationRepository(p.db))
 }
 
 func (p *Provider) Course() courseUsecase.CourseUseCaseInterface {
