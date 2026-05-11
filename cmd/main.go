@@ -49,7 +49,14 @@ func main() {
 
 	provider := di.NewProvider(gorm)
 
-	router := gateway.SetupRouter(cfg.Server, middleware.NewMiddleware(&cfg.Token), gateway.NewGateway(provider))
+	userGateway := gateway.NewGateway(provider)
+	courseGateway := gateway.NewCourseGateway(
+		provider.Course(),
+		provider.Module(),
+		provider.Slide(),
+	)
+
+	router := gateway.SetupRouter(cfg.Server, middleware.NewMiddleware(&cfg.Token), userGateway, courseGateway)
 
 	httpServer := pkg.RunServer(cfg.Server.Addr, cfg.Server.Port, router)
 

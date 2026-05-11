@@ -22,7 +22,7 @@ func NewGateway(provider *di.Provider) *Gateway {
 	}
 }
 
-func SetupRouter(cfg config.Server, mw *middleware.Middleware, gateGateway *Gateway) *gin.Engine {
+func SetupRouter(cfg config.Server, mw *middleware.Middleware, gateGateway *Gateway, courseGateway *CourseGateway) *gin.Engine {
 	gHttp := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
 	domain := cfg.Addr + ":" + cfg.Port
@@ -60,27 +60,29 @@ func SetupRouter(cfg config.Server, mw *middleware.Middleware, gateGateway *Gate
 
 			courses := organizations.Group("/:id/courses")
 			{
-				courses.GET("/", nil)
-				courses.POST("/", nil)
-				courses.GET("/:courseId", nil)
-				courses.PUT("/:courseId", nil)
-				courses.DELETE("/:courseId", nil)
+				courses.GET("/", courseGateway.ListCourses)
+				courses.POST("/", courseGateway.CreateCourse)
+				courses.GET("/:courseId", courseGateway.GetCourse)
+				courses.PUT("/:courseId", courseGateway.UpdateCourse)
+				courses.DELETE("/:courseId", courseGateway.DeleteCourse)
+				courses.POST("/:courseId/modules", courseGateway.AddModuleToCourse)
+				courses.DELETE("/:courseId/modules/:moduleId", courseGateway.RemoveModuleFromCourse)
 
 				modules := courses.Group("/:courseId/modules")
 				{
-					modules.POST("/", nil)
-					modules.GET("/:moduleId", nil)
-					modules.PUT("/:moduleId", nil)
-					modules.DELETE("/:moduleId", nil)
-					modules.PUT("/recorder", nil)
+					modules.POST("/", courseGateway.CreateModule)
+					modules.GET("/:moduleId", courseGateway.GetModule)
+					modules.PUT("/:moduleId", courseGateway.UpdateModule)
+					modules.DELETE("/:moduleId", courseGateway.DeleteModule)
+					modules.POST("/:moduleId/slides", courseGateway.AddSlideToModule)
+					modules.DELETE("/:moduleId/slides/:slideId", courseGateway.RemoveSlideFromModule)
 
 					slides := modules.Group("/:moduleId/slides")
 					{
-						slides.POST("/", nil)
-						slides.GET("/:slideId", nil)
-						slides.PUT("/:slideId", nil)
-						slides.DELETE("/:slideId", nil)
-						slides.PUT("/recorder", nil)
+						slides.POST("/", courseGateway.CreateSlide)
+						slides.GET("/:slideId", courseGateway.GetSlide)
+						slides.PUT("/:slideId", courseGateway.UpdateSlide)
+						slides.DELETE("/:slideId", courseGateway.DeleteSlide)
 					}
 				}
 			}

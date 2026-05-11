@@ -121,3 +121,158 @@ token:
   access-token: ${ACCESS_TOKEN}
   refresh-token: ${REFRESH_TOKEN}
 ```
+
+## Структура курсов
+
+Система поддерживает иерархическую структуру: **Организация → Курсы → Модули → Слайды**
+
+### API Endpoints для курсов
+
+#### Курсы
+
+```bash
+# Список курсов организации
+GET /api/organizations/:id/courses
+
+# Создать курс
+POST /api/organizations/:id/courses
+{
+  "title": "Название курса",
+  "description": "Описание курса",
+  "organization_id": 1
+}
+
+# Получить курс со всеми модулями и слайдами
+GET /api/organizations/:id/courses/:courseId
+
+# Обновить курс
+PUT /api/organizations/:id/courses/:courseId
+{
+  "title": "Новое название",
+  "description": "Новое описание"
+}
+
+# Удалить курс
+DELETE /api/organizations/:id/courses/:courseId
+```
+
+#### Модули
+
+```bash
+# Создать модуль
+POST /api/organizations/:id/courses/:courseId/modules
+{
+  "title": "Название модуля",
+  "course_id": 1
+}
+
+# Получить модуль со слайдами
+GET /api/organizations/:id/courses/:courseId/modules/:moduleId
+
+# Обновить модуль
+PUT /api/organizations/:id/courses/:courseId/modules/:moduleId
+{
+  "title": "Новое название модуля"
+}
+
+# Удалить модуль
+DELETE /api/organizations/:id/courses/:courseId/modules/:moduleId
+
+# Добавить модуль к курсу
+POST /api/organizations/:id/courses/:courseId/modules
+{
+  "module_id": 1,
+  "index": 0
+}
+
+# Удалить модуль из курса
+DELETE /api/organizations/:id/courses/:courseId/modules/:moduleId
+```
+
+#### Слайды
+
+```bash
+# Создать слайд
+POST /api/organizations/:id/courses/:courseId/modules/:moduleId/slides
+{
+  "title": "Название слайда",
+  "description": "Описание",
+  "slide_type": "TEXT|VIDEO_URL|TEST|FILE",
+  "payload": {
+    "content": "# Текст слайда",
+    "videoUrl": "https://youtube.com/watch?v=...",
+    "question": "Вопрос теста",
+    "options": [...]
+  },
+  "module_id": 1
+}
+
+# Получить слайд
+GET /api/organizations/:id/courses/:courseId/modules/:moduleId/slides/:slideId
+
+# Обновить слайд
+PUT /api/organizations/:id/courses/:courseId/modules/:moduleId/slides/:slideId
+{
+  "title": "Новое название",
+  "description": "Новое описание",
+  "slide_type": "TEXT",
+  "payload": {...}
+}
+
+# Удалить слайд
+DELETE /api/organizations/:id/courses/:courseId/modules/:moduleId/slides/:slideId
+
+# Добавить слайд к модулю
+POST /api/organizations/:id/courses/:courseId/modules/:moduleId/slides
+{
+  "slide_id": 1,
+  "index": 0
+}
+
+# Удалить слайд из модуля
+DELETE /api/organizations/:id/courses/:courseId/modules/:moduleId/slides/:slideId
+```
+
+### Типы слайдов
+
+- **TEXT** - текстовый слайд с markdown
+- **VIDEO_URL** - видео слайд с URL
+- **TEST** - слайд с тестовыми вопросами
+- **FILE** - слайд с файлами
+
+### Пример создания курса с модулями
+
+```bash
+# 1. Создать модуль
+POST /api/organizations/1/courses/1/modules
+{
+  "title": "Введение",
+  "course_id": 1
+}
+# Response: { "id": 1, "title": "Введение" }
+
+# 2. Создать слайд TEXT
+POST /api/organizations/1/courses/1/modules/1/slides
+{
+  "title": "Что такое ЧПУ",
+  "slide_type": "TEXT",
+  "payload": {
+    "content": "# ЧПУ\n\nЧисловое программное управление..."
+  }
+}
+
+# 3. Создать слайд VIDEO_URL
+POST /api/organizations/1/courses/1/modules/1/slides
+{
+  "title": "Лекция",
+  "slide_type": "VIDEO_URL",
+  "payload": {
+    "videoUrl": "https://youtube.com/watch?v=...",
+    "durationSeconds": 1200,
+    "platform": "YOUTUBE"
+  }
+}
+
+# 4. Получить курс со всеми модулями и слайдами
+GET /api/organizations/1/courses/1
+```
