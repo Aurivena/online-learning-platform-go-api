@@ -1,18 +1,15 @@
 package pkg
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 type MinioConfig struct {
-	AccessKey string `yaml:"access_key"`
-	SecretKey string `yaml:"secret_key"`
-	Bucket    string `yaml:"bucket"`
-	Endpoint  string `yaml:"endpoint"`
-	SSL       bool   `yaml:"sslmode"`
+	AccessKey, SecretKey, Endpoint string
+	SSL                            bool
 }
 
 func NewMinioConfig(cfg MinioConfig) (*minio.Client, error) {
@@ -21,7 +18,7 @@ func NewMinioConfig(cfg MinioConfig) (*minio.Client, error) {
 		Secure: cfg.SSL,
 	})
 	if err != nil {
-		log.Fatalln(err)
+		slog.Error("Failed to create Minio client: ", "error", err)
 		return nil, err
 	}
 

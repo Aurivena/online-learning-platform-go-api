@@ -4,41 +4,40 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"online-learning-platform-go-api/config"
 
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
-var migrationsDir = "../resources/migrations"
-
-type PostgresConfig struct {
-	User     string `yaml:"user"`
-	Password string `yaml:"password"`
-	Host     string `yaml:"host"`
-	Database string `yaml:"database"`
-	Port     string `yaml:"port"`
-	SSL      string `yaml:"sslmode"`
+type DBConfig struct {
+	Host, Port, User, Password, DBName, SSL string
 }
 
-func NewPostgresConfig(cfg PostgresConfig) (*sqlx.DB, error) {
-	connectionString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database, cfg.SSL)
+func NewPostgresConfig(cfg DBConfig) (*gorm.DB, error) {
+	connectionString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName, cfg.SSL)
 
-	db, err := sql.Open("postgres", connectionString)
+	sqlDB, err := sql.Open("postgres", connectionString)
 	if err != nil {
 		slog.Error("open postgres connection", slog.String("error", err.Error()))
 		return nil, err
 	}
 
-	if err := db.Ping(); err != nil {
+	if err := sqlDB.Ping(); err != nil {
 		slog.Error("ping postgres", slog.String("error", err.Error()))
 		return nil, err
 	}
 
-	if err := goose.Up(db, migrationsDir); err != nil {
+	if err := goose.Up(sqlDB, config.MigrationsDirForPostgres); err != nil {
+
 		slog.Error(err.Error())
 		return nil, err
 	}
 
-	return sqlx.NewDb(db, "postgres"), nil
+	return gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
+	}), &gorm.Config{})
+
 }

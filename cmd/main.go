@@ -1,6 +1,9 @@
 package main
 
 import (
+	"log/slog"
+	"online-learning-platform-go-api/internal/di"
+	"online-learning-platform-go-api/internal/middleware"
 	"online-learning-platform-go-api/internal/pkg"
 
 	"online-learning-platform-go-api/config"
@@ -13,21 +16,50 @@ func main() {
 		return
 	}
 
-	db, err := pkg.NewPostgresConfig(cfg.Postgres)
+	gorm, err := pkg.NewPostgresConfig(pkg.DBConfig{
+		User:     cfg.Postgres.User,
+		Password: cfg.Postgres.Password,
+		Host:     cfg.Postgres.Host,
+		Port:     cfg.Postgres.Port,
+		DBName:   cfg.Postgres.Database,
+		SSL:      cfg.Postgres.SSL,
+	})
+	if err != nil {
+		slog.Error("Failed to connect to PostgreSQL: ", "error", err)
+		return
+	}
+
+	sqlDB, err := gorm.DB()
+	if err != nil {
+		slog.Error("Failed to get SQL DB: ", "error", err)
+		return
+	}
+
+	defer sqlDB.Close()
+
+	_, err = pkg.NewMinioConfig(pkg.MinioConfig{
+		AccessKey: cfg.Minio.AccessKey,
+		SecretKey: cfg.Minio.SecretKey,
+		Endpoint:  cfg.Minio.Endpoint,
+		SSL:       cfg.Minio.SSL,
+	})
 	if err != nil {
 		return
 	}
 
-	defer db.Close()
+	provider := di.NewProvider(gorm)
 
-	_, err = pkg.NewMinioConfig(cfg.Minio)
-	if err != nil {
-		return
-	}
+	userGateway := gateway.NewGateway(provider)
+	orgGateway := gateway.NewOrganizationGateway(provider.Organization())
+	courseGateway := gateway.NewCourseGateway(
+		provider.Course(),
+		provider.Module(),
+		provider.Slide(),
+	)
 
-	handler := gateway.NewGateway(cfg.Server)
+	router := gateway.SetupRouter(cfg.Server, middleware.NewMiddleware(&cfg.Token), userGateway, orgGateway, courseGateway)
 
-	go pkg.RunServer(cfg.Server, handler)
+	httpServer := pkg.RunServer(cfg.Server.Addr, cfg.Server.Port, router)
 
-	pkg.StopServer()
+	pkg.StopServer(httpServer)
 }

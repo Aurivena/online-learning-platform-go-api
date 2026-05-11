@@ -1,5 +1,5 @@
 minio:
-  url: http://localhost:9000
+  url: ${SERVER_ADDR}:${SERVER_PORT}
   access-key: ${STORAGE_USER}
   secret-key: ${STORAGE_PASSWORD}
   bucket: ${STORAGE_BUCKET}
@@ -17,5 +17,8 @@ postgres:
 server:
   addr: ${SERVER_ADDR}
   port: ${SERVER_PORT}
-jwt:
-  secret: ${JWT_SECRET}
+  server-domain: ${SERVER_DOMAIN}
+
+token:
+  access-token: ${ACCESS_TOKEN}
+  refresh-token: ${REFRESH_TOKEN}
