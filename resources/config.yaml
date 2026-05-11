@@ -17,6 +17,7 @@ postgres:
 server:
   addr: ${SERVER_ADDR}
   port: ${SERVER_PORT}
+  server-domain: ${SERVER_DOMAIN}
 
 token:
   access-token: ${ACCESS_TOKEN}

@@ -16,7 +16,7 @@ type LoginResult struct {
 }
 
 func (u *AccountUseCase) Login(ctx context.Context, input dto.LoginRequest) (*LoginResult, *netsp.Response[netsp.ErrorDetail]) {
-	account, err := u.repo.GetByEmail(ctx, input.Email)
+	account, err := u.repo.GetByEmail(ctx, input.Input)
 	if err != nil {
 		return nil, netsp.BuildError(
 			netstatus.CodeNotFound,
@@ -28,7 +28,21 @@ func (u *AccountUseCase) Login(ctx context.Context, input dto.LoginRequest) (*Lo
 		)
 	}
 
-	if err := domain.PasswordVerify(account.Password, input.Password); err != nil {
+	if account == nil {
+		account, err = u.repo.GetByUsername(ctx, input.Input)
+		if err != nil {
+			return nil, netsp.BuildError(
+				netstatus.CodeNotFound,
+				netsp.ErrorDetail{
+					Title:    "Account Not Found",
+					Message:  "No account found with this username",
+					Solution: "Please check your username or register a new account",
+				},
+			)
+		}
+	}
+
+	if err := domain.PasswordVerify(account.PasswordHash, input.Password); err != nil {
 		return nil, netsp.BuildError(
 			netstatus.CodeUnauthorized,
 			netsp.ErrorDetail{

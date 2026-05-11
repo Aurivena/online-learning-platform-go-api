@@ -25,13 +25,13 @@ func NewGateway(provider *di.Provider) *Gateway {
 func SetupRouter(cfg config.Server, mw *middleware.Middleware, userGateway *Gateway, orgGateway *OrganizationGateway, courseGateway *CourseGateway) *gin.Engine {
 	gHttp := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
-	domain := cfg.Addr + ":" + cfg.Port
+	domain := cfg.ServerDomain
 	allowOrigins := strings.Split(domain, ",")
 
 	gHttp.Use(cors.New(cors.Config{
 		AllowOrigins:     allowOrigins,
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
-		AllowHeaders:     []string{"Content-Type"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Accept", "Content-Type", "Content-Length", "Accept-Encoding", "Authorization"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
@@ -69,8 +69,6 @@ func SetupRouter(cfg config.Server, mw *middleware.Middleware, userGateway *Gate
 				courses.GET("/:courseId", courseGateway.GetCourse)
 				courses.PUT("/:courseId", courseGateway.UpdateCourse)
 				courses.DELETE("/:courseId", courseGateway.DeleteCourse)
-				courses.POST("/:courseId/modules", courseGateway.AddModuleToCourse)
-				courses.DELETE("/:courseId/modules/:moduleId", courseGateway.RemoveModuleFromCourse)
 
 				modules := courses.Group("/:courseId/modules")
 				{
@@ -78,8 +76,6 @@ func SetupRouter(cfg config.Server, mw *middleware.Middleware, userGateway *Gate
 					modules.GET("/:moduleId", courseGateway.GetModule)
 					modules.PUT("/:moduleId", courseGateway.UpdateModule)
 					modules.DELETE("/:moduleId", courseGateway.DeleteModule)
-					modules.POST("/:moduleId/slides", courseGateway.AddSlideToModule)
-					modules.DELETE("/:moduleId/slides/:slideId", courseGateway.RemoveSlideFromModule)
 
 					slides := modules.Group("/:moduleId/slides")
 					{

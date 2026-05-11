@@ -40,8 +40,9 @@ type PostgresConfig struct {
 }
 
 type Server struct {
-	Addr string
-	Port string
+	Addr         string
+	Port         string
+	ServerDomain string `yaml:"server-domain"`
 }
 
 type TokenConfig struct {

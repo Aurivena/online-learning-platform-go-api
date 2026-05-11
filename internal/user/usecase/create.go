@@ -36,12 +36,12 @@ func (u *AccountUseCase) Registration(ctx context.Context, input dto.Registratio
 	}
 
 	account := entity.Account{
-		Email:     input.Email,
-		Username:  input.Username,
-		Password:  password,
-		Role:      input.Role,
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
+		Email:        input.Email,
+		Username:     input.Username,
+		PasswordHash: password,
+		Role:         input.Role,
+		CreatedAt:    time.Now().UTC(),
+		UpdatedAt:    time.Now().UTC(),
 	}
 
 	if err := u.repo.Create(ctx, &account); err != nil {

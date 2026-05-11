@@ -12,7 +12,7 @@ import (
 
 func RunServer(addr, port string, handler http.Handler) *http.Server {
 	httpServer := &http.Server{
-		Addr:           addr + ":" + port,
+		Addr:           ":" + port,
 		Handler:        handler,
 		MaxHeaderBytes: 1 << 20,
 		ReadTimeout:    60 * time.Second,

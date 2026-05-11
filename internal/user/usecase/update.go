@@ -24,12 +24,12 @@ func (uc *AccountUseCase) Update(ctx context.Context, req dto.UpdateRequest, id 
 		)
 	}
 	account := &entity.Account{
-		ID:        uint(id),
-		Username:  req.Username,
-		Email:     req.Email,
-		Role:      req.Role,
-		Password:  hashPassword,
-		UpdatedAt: time.Now().UTC(),
+		ID:           uint(id),
+		Username:     req.Username,
+		Email:        req.Email,
+		Role:         req.Role,
+		PasswordHash: hashPassword,
+		UpdatedAt:    time.Now().UTC(),
 	}
 	if err := uc.repo.Update(ctx, account); err != nil {
 		return netsp.BuildError(
