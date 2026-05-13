@@ -1,11 +1,13 @@
 package adaptors
 
-import "gorm.io/gorm"
+import (
+	"gorm.io/gorm"
+)
 
-type Repository struct {
+type AccountRepository struct {
 	db *gorm.DB
 }
 
-func NewRepository(db *gorm.DB) *Repository {
-	return &Repository{db: db}
+func NewAccountRepository(db *gorm.DB) *AccountRepository {
+	return &AccountRepository{db: db}
 }

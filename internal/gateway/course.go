@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/Aurivena/spond/v4/netoutput"
 	"github.com/Aurivena/spond/v4/netsp"
@@ -11,27 +12,40 @@ import (
 	"online-learning-platform-go-api/internal/course/dto"
 	"online-learning-platform-go-api/internal/course/entity"
 	"online-learning-platform-go-api/internal/course/usecase"
+	"online-learning-platform-go-api/internal/storage"
 )
 
 type CourseGateway struct {
-	courseUC usecase.CourseUseCaseInterface
-	moduleUC usecase.ModuleUseCaseInterface
-	slideUC  usecase.SlideUseCaseInterface
+	courseUC        usecase.CourseUseCaseInterface
+	moduleUC        usecase.ModuleUseCaseInterface
+	slideUC         usecase.SlideUseCaseInterface
+	files           *storage.Bucket
+	filesPublicBase string
 }
 
 func NewCourseGateway(
 	courseUC usecase.CourseUseCaseInterface,
 	moduleUC usecase.ModuleUseCaseInterface,
 	slideUC usecase.SlideUseCaseInterface,
+	files *storage.Bucket,
+	filesPublicBase string,
 ) *CourseGateway {
 	return &CourseGateway{
-		courseUC: courseUC,
-		moduleUC: moduleUC,
-		slideUC:  slideUC,
+		courseUC:        courseUC,
+		moduleUC:        moduleUC,
+		slideUC:         slideUC,
+		files:           files,
+		filesPublicBase: strings.TrimSpace(filesPublicBase),
 	}
 }
 
 func (g *CourseGateway) CreateCourse(c *gin.Context) {
+	orgID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid organization ID"})
+		return
+	}
+
 	var input dto.CreateCourseRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -52,7 +66,7 @@ func (g *CourseGateway) CreateCourse(c *gin.Context) {
 		return
 	}
 
-	course, errResp := g.courseUC.CreateCourse(c, userID.(uint64), input)
+	course, errResp := g.courseUC.CreateCourse(c, userID.(uint64), orgID, input)
 	if errResp != nil {
 		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
@@ -158,13 +172,19 @@ func (g *CourseGateway) AddModuleToCourse(c *gin.Context) {
 		return
 	}
 
+	moduleID, err := strconv.ParseUint(c.Param("moduleId"), 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid module ID"})
+		return
+	}
+
 	var input dto.AddModuleToCourseRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
-	errResp := g.courseUC.AddModuleToCourse(c, courseID, input)
+	errResp := g.courseUC.AddModuleToCourse(c, courseID, moduleID, input)
 	if errResp != nil {
 		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
@@ -206,21 +226,12 @@ func convertToCourseResponse(course *entity.Course) dto.CourseResponse {
 	for i, m := range course.Modules {
 		slides := make([]dto.SlideResponse, len(m.Slides))
 		for j, s := range m.Slides {
-			slides[j] = dto.SlideResponse{
-				ID:          s.ID,
-				Title:       s.Title,
-				Description: s.Description,
-				SlideType:   s.SlideType,
-				Payload:     s.Payload,
-				CreatedAt:   s.CreatedAt,
-				UpdatedAt:   s.UpdatedAt,
-			}
+			slides[j] = slideEntityToResponse(s)
 		}
 		modules[i] = dto.ModuleResponse{
 			ID:        m.ID,
 			Title:     m.Title,
 			CreatedAt: m.CreatedAt,
-			UpdatedAt: m.UpdatedAt,
 			Slides:    slides,
 		}
 	}
@@ -232,7 +243,6 @@ func convertToCourseResponse(course *entity.Course) dto.CourseResponse {
 		Owner:          course.Owner,
 		OrganizationID: course.OrganizationID,
 		CreatedAt:      course.CreatedAt,
-		UpdatedAt:      course.UpdatedAt,
 		Modules:        modules,
 	}
 }

@@ -11,21 +11,23 @@ import (
 	"github.com/Aurivena/spond/v4/netstatus"
 )
 
-func (u *AccountUseCase) Registration(ctx context.Context, input dto.RegistrationRequest) (*dto.RegistrationResponse, *netsp.Response[netsp.ErrorDetail]) {
-	if input.Role != entity.RoleUser && input.Role != entity.RoleAdmin {
-		return nil, netsp.BuildError(
-			netstatus.CodeBadRequest,
-			netsp.ErrorDetail{
-				Title:    "Invalid Role",
-				Message:  "Role must be either USER or ADMIN",
-				Solution: "Please provide a valid role",
-			},
-		)
+func (u *AccountUseCase) Registration(ctx context.Context, input dto.RegistrationRequest) *netsp.Response[netsp.ErrorDetail] {
+	if input.OrganizationID != nil && *input.OrganizationID != 0 {
+		if _, err := u.orgRepo.GetByID(ctx, *input.OrganizationID); err != nil {
+			return netsp.BuildError(
+				netstatus.CodeBadRequest,
+				netsp.ErrorDetail{
+					Title:    "Organization Not Found",
+					Message:  "The specified organization does not exist",
+					Solution: "Please check organization_id and try again",
+				},
+			)
+		}
 	}
 
 	password, err := domain.PasswordHash(input.Password)
 	if err != nil {
-		return nil, netsp.BuildError(
+		return netsp.BuildError(
 			netstatus.CodeBadRequest,
 			netsp.ErrorDetail{
 				Title:    "Invalid Password",
@@ -39,13 +41,12 @@ func (u *AccountUseCase) Registration(ctx context.Context, input dto.Registratio
 		Email:        input.Email,
 		Username:     input.Username,
 		PasswordHash: password,
-		Role:         input.Role,
 		CreatedAt:    time.Now().UTC(),
 		UpdatedAt:    time.Now().UTC(),
 	}
 
 	if err := u.repo.Create(ctx, &account); err != nil {
-		return nil, netsp.BuildError(
+		return netsp.BuildError(
 			netstatus.CodeBadRequest,
 			netsp.ErrorDetail{
 				Title:    "Account Creation Error",
@@ -55,11 +56,19 @@ func (u *AccountUseCase) Registration(ctx context.Context, input dto.Registratio
 		)
 	}
 
-	return &dto.RegistrationResponse{
-		ID:        account.ID,
-		Email:     account.Email,
-		Username:  account.Username,
-		Role:      account.Role,
-		CreatedAt: account.CreatedAt,
-	}, nil
+	if input.OrganizationID != nil && *input.OrganizationID != 0 {
+		if err := u.orgRepo.AddAccount(ctx, *input.OrganizationID, uint64(account.ID)); err != nil {
+			_ = u.repo.Delete(ctx, uint64(account.ID))
+			return netsp.BuildError(
+				netstatus.CodeBadRequest,
+				netsp.ErrorDetail{
+					Title:    "Organization Link Failed",
+					Message:  "Could not attach the account to the organization",
+					Solution: "The account was not created; try again or contact support",
+				},
+			)
+		}
+	}
+
+	return nil
 }

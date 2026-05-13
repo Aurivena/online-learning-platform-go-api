@@ -13,8 +13,8 @@ CREATE TABLE organizations
 
 CREATE TABLE organization_accounts
 (
-    organization_id BIGINT,
-    account_id      BIGINT,
+    organization_id BIGINT NOT NULL,
+    account_id      BIGINT NOT NULL,
 
     CONSTRAINT fk_organization_accounts_0
         FOREIGN KEY (organization_id)
@@ -27,6 +27,9 @@ CREATE TABLE organization_accounts
             ON DELETE CASCADE,
     PRIMARY KEY (organization_id, account_id)
 );
+
+CREATE INDEX idx_organization_accounts_account_id ON organization_accounts (account_id);
+CREATE INDEX idx_organization_accounts_organization_id ON organization_accounts (organization_id);
 
 
 INSERT INTO organizations (title, tag, description, owner_id, created_at)

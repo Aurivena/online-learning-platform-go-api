@@ -7,7 +7,7 @@ CREATE TABLE accounts
     id            BIGSERIAL PRIMARY KEY,
     email         VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role          roles  NOT NULL,
+    role          roles  default 'USER',
     username      VARCHAR(125),
     created_at    timestamp default now(),
     updated_at    timestamp default now()

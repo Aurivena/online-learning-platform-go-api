@@ -96,7 +96,7 @@ func (uc *OrganizationUseCase) GetOrganizationByTag(ctx context.Context, tag str
 }
 
 func (uc *OrganizationUseCase) ListMyOrganizations(ctx context.Context, ownerID uint64) ([]entity.Organization, *netsp.Response[netsp.ErrorDetail]) {
-	orgs, err := uc.repo.GetByOwner(ctx, ownerID)
+	orgs, err := uc.repo.GetByAccountEntities(ctx, ownerID)
 	if err != nil {
 		return nil, netsp.BuildError(
 			http.StatusInternalServerError,

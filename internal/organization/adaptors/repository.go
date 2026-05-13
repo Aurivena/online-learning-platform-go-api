@@ -48,6 +48,18 @@ func (r *OrganizationRepository) GetAll(ctx context.Context) ([]entity.Organizat
 	return orgs, err
 }
 
+func (r *OrganizationRepository) GetByAccountEntities(ctx context.Context, accountID uint64) ([]entity.Organization, error) {
+	var orgs []entity.Organization
+	err := r.db.WithContext(ctx).
+		Table("organizations").
+		Select("organizations.*").
+		Joins("inner join organization_accounts oa on oa.organization_id = organizations.id").
+		Where("oa.account_id = ?", accountID).
+		Order("organizations.created_at desc").
+		Find(&orgs).Error
+	return orgs, err
+}
+
 func (r *OrganizationRepository) Update(ctx context.Context, org *entity.Organization) error {
 	return r.db.WithContext(ctx).Model(org).Updates(org).Error
 }

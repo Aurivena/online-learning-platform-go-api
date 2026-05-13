@@ -2,6 +2,7 @@ package adaptors
 
 import (
 	"context"
+	"database/sql"
 	"online-learning-platform-go-api/internal/course/entity"
 
 	"gorm.io/gorm"
@@ -21,30 +22,39 @@ func (r *CourseRepository) Create(ctx context.Context, course *entity.Course) er
 
 func (r *CourseRepository) GetByID(ctx context.Context, id uint64) (*entity.Course, error) {
 	var course entity.Course
-	err := r.db.WithContext(ctx).
-		Preload("Modules", func(db *gorm.DB) *gorm.DB {
-			return db.Order("course_modules.index")
-		}).
-		Preload("Modules.Slides", func(db *gorm.DB) *gorm.DB {
-			return db.Order("module_slides.index")
-		}).
-		First(&course, id).Error
-	return &course, err
+	if err := r.db.WithContext(ctx).First(&course, id).Error; err != nil {
+		return nil, err
+	}
+	if err := r.db.WithContext(ctx).Model(&course).Order("course_modules.index").Association("Modules").Find(&course.Modules); err != nil {
+		return nil, err
+	}
+	for i := range course.Modules {
+		if err := r.db.WithContext(ctx).Model(&course.Modules[i]).Order("module_slides.index").Association("Slides").Find(&course.Modules[i].Slides); err != nil {
+			return nil, err
+		}
+	}
+	return &course, nil
 }
 
 func (r *CourseRepository) GetByOrganization(ctx context.Context, orgID uint64) ([]entity.Course, error) {
 	var courses []entity.Course
-	err := r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("organization_id = ?", orgID).
-		Preload("Modules", func(db *gorm.DB) *gorm.DB {
-			return db.Order("course_modules.index")
-		}).
-		Preload("Modules.Slides", func(db *gorm.DB) *gorm.DB {
-			return db.Order("module_slides.index")
-		}).
 		Order("created_at desc").
-		Find(&courses).Error
-	return courses, err
+		Find(&courses).Error; err != nil {
+		return nil, err
+	}
+	for i := range courses {
+		if err := r.db.WithContext(ctx).Model(&courses[i]).Order("course_modules.index").Association("Modules").Find(&courses[i].Modules); err != nil {
+			return nil, err
+		}
+		for j := range courses[i].Modules {
+			if err := r.db.WithContext(ctx).Model(&courses[i].Modules[j]).Order("module_slides.index").Association("Slides").Find(&courses[i].Modules[j].Slides); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return courses, nil
 }
 
 func (r *CourseRepository) Update(ctx context.Context, course *entity.Course) error {
@@ -69,6 +79,47 @@ func (r *CourseRepository) RemoveModule(ctx context.Context, courseID, moduleID 
 		Delete(nil).Error
 }
 
+func (r *CourseRepository) NextModuleIndex(ctx context.Context, courseID uint64) (int, error) {
+	var max sql.NullInt64
+	err := r.db.WithContext(ctx).Raw(
+		`SELECT MAX("index") FROM course_modules WHERE course_id = ?`,
+		courseID,
+	).Scan(&max).Error
+	if err != nil {
+		return 0, err
+	}
+	if !max.Valid {
+		return 1, nil
+	}
+	return int(max.Int64) + 1, nil
+}
+
+func (r *CourseRepository) ReorderModules(ctx context.Context, courseID uint64, moduleIDsInOrder []uint64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for i, mid := range moduleIDsInOrder {
+			if res := tx.Exec(
+				`UPDATE course_modules SET "index" = ? WHERE course_id = ? AND module_id = ?`,
+				-(i + 1), courseID, mid,
+			); res.Error != nil {
+				return res.Error
+			} else if res.RowsAffected == 0 {
+				return gorm.ErrRecordNotFound
+			}
+		}
+		for i, mid := range moduleIDsInOrder {
+			if res := tx.Exec(
+				`UPDATE course_modules SET "index" = ? WHERE course_id = ? AND module_id = ?`,
+				i+1, courseID, mid,
+			); res.Error != nil {
+				return res.Error
+			} else if res.RowsAffected == 0 {
+				return gorm.ErrRecordNotFound
+			}
+		}
+		return nil
+	})
+}
+
 type ModuleRepository struct {
 	db *gorm.DB
 }
@@ -83,12 +134,13 @@ func (r *ModuleRepository) Create(ctx context.Context, module *entity.Module) er
 
 func (r *ModuleRepository) GetByID(ctx context.Context, id uint64) (*entity.Module, error) {
 	var module entity.Module
-	err := r.db.WithContext(ctx).
-		Preload("Slides", func(db *gorm.DB) *gorm.DB {
-			return db.Order("module_slides.index")
-		}).
-		First(&module, id).Error
-	return &module, err
+	if err := r.db.WithContext(ctx).First(&module, id).Error; err != nil {
+		return nil, err
+	}
+	if err := r.db.WithContext(ctx).Model(&module).Order("module_slides.index").Association("Slides").Find(&module.Slides); err != nil {
+		return nil, err
+	}
+	return &module, nil
 }
 
 func (r *ModuleRepository) Update(ctx context.Context, module *entity.Module) error {
@@ -111,6 +163,47 @@ func (r *ModuleRepository) RemoveSlide(ctx context.Context, moduleID, slideID ui
 	return r.db.WithContext(ctx).Table("module_slides").
 		Where("module_id = ? AND slide_id = ?", moduleID, slideID).
 		Delete(nil).Error
+}
+
+func (r *ModuleRepository) NextSlideIndex(ctx context.Context, moduleID uint64) (int, error) {
+	var max sql.NullInt64
+	err := r.db.WithContext(ctx).Raw(
+		`SELECT MAX("index") FROM module_slides WHERE module_id = ?`,
+		moduleID,
+	).Scan(&max).Error
+	if err != nil {
+		return 0, err
+	}
+	if !max.Valid {
+		return 1, nil
+	}
+	return int(max.Int64) + 1, nil
+}
+
+func (r *ModuleRepository) ReorderSlides(ctx context.Context, moduleID uint64, slideIDsInOrder []uint64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for i, sid := range slideIDsInOrder {
+			if res := tx.Exec(
+				`UPDATE module_slides SET "index" = ? WHERE module_id = ? AND slide_id = ?`,
+				-(i + 1), moduleID, sid,
+			); res.Error != nil {
+				return res.Error
+			} else if res.RowsAffected == 0 {
+				return gorm.ErrRecordNotFound
+			}
+		}
+		for i, sid := range slideIDsInOrder {
+			if res := tx.Exec(
+				`UPDATE module_slides SET "index" = ? WHERE module_id = ? AND slide_id = ?`,
+				i+1, moduleID, sid,
+			); res.Error != nil {
+				return res.Error
+			} else if res.RowsAffected == 0 {
+				return gorm.ErrRecordNotFound
+			}
+		}
+		return nil
+	})
 }
 
 type SlideRepository struct {

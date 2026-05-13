@@ -13,10 +13,10 @@ const (
 
 type Account struct {
 	ID           uint   `gorm:"primaryKey"`
-	Email        string `gorm:"unique;not null"`
-	Username     string `gorm:"unique;not null"`
-	PasswordHash string `gorm:"not null"`
-	Role         Role   `gorm:"type:varchar(20);not null"`
+	Email        string `gorm:"column:email;type:varchar(255);uniqueIndex;not null"`
+	Username     string `gorm:"column:username;type:varchar(125)"`
+	PasswordHash string `gorm:"column:password_hash;type:varchar(255);not null"`
+	Role         Role   `gorm:"column:role;type:roles;not null"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }

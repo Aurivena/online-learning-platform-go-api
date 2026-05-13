@@ -16,25 +16,14 @@ func (g *Gateway) Registration(c *gin.Context) {
 		return
 	}
 
-	account, errResp := g.User.Registration(c, input)
-	if errResp != nil {
+	if errResp := g.User.Registration(c, input); errResp != nil {
 		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
-	c.Set("userId", account.ID)
-	c.Set("role", account.Role)
-	c.Next()
-
-	accessToken, _ := c.Get("accessToken")
-	refreshToken, _ := c.Get("refreshToken")
-
-	account.AccessToken = accessToken.(string)
-	account.RefreshToken = refreshToken.(string)
-
-	netoutput.WriteHTTP(c.Writer, netsp.Response[dto.RegistrationResponse]{
+	netoutput.WriteHTTP(c.Writer, netsp.Response[any]{
 		Code: netstatus.CodeSuccess,
-		Data: *account,
+		Data: nil,
 	})
 }
 
@@ -64,5 +53,32 @@ func (g *Gateway) Login(c *gin.Context) {
 	netoutput.WriteHTTP(c.Writer, netsp.Response[dto.AuthResponse]{
 		Code: netstatus.CodeSuccess,
 		Data: *loginResult.Response,
+	})
+}
+
+func (g *Gateway) GetProfile(c *gin.Context) {
+	userID, ok := c.Get("userId")
+	if !ok {
+		errResp := netsp.BuildError(
+			401,
+			netsp.ErrorDetail{
+				Title:    "Unauthorized",
+				Message:  "User ID not found in context",
+				Solution: "Please authenticate first",
+			},
+		)
+		netoutput.WriteHTTP(c.Writer, *errResp)
+		return
+	}
+
+	profile, errResp := g.User.GetProfile(c, userID.(uint64))
+	if errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
+		return
+	}
+
+	netoutput.WriteHTTP(c.Writer, netsp.Response[dto.UserProfileResponse]{
+		Code: netstatus.CodeSuccess,
+		Data: *profile,
 	})
 }

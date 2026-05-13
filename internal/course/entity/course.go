@@ -22,7 +22,6 @@ type Course struct {
 	Owner          uint64    `gorm:"type:bigint" json:"owner"`
 	OrganizationID uint64    `gorm:"type:bigint" json:"organization_id"`
 	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
 	Modules        []Module  `gorm:"many2many:course_modules;joinForeignKey:course_id;joinReferences:module_id" json:"modules,omitempty"`
 }
 
@@ -30,7 +29,6 @@ type Module struct {
 	ID        uint64    `gorm:"primaryKey" json:"id"`
 	Title     string    `gorm:"type:varchar(125);not null" json:"title"`
 	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
 	Slides    []Slide   `gorm:"many2many:module_slides;joinForeignKey:module_id;joinReferences:slide_id" json:"slides,omitempty"`
 }
 
@@ -41,7 +39,6 @@ type Slide struct {
 	SlideType   SlideType   `gorm:"type:slide_variation;not null" json:"slide_type"`
 	Payload     PayloadJSON `gorm:"type:jsonb" json:"payload"`
 	CreatedAt   time.Time   `json:"created_at"`
-	UpdatedAt   time.Time   `json:"updated_at"`
 }
 
 type PayloadJSON map[string]interface{}
