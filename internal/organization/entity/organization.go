@@ -9,7 +9,6 @@ type Organization struct {
 	Description string    `gorm:"type:text;not null" json:"description"`
 	OwnerID     uint64    `gorm:"type:bigint;not null" json:"owner_id"`
 	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type OrganizationAccount struct {

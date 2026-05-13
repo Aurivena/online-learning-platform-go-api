@@ -6,10 +6,10 @@ import (
 )
 
 type RegistrationRequest struct {
-	Email    string      `json:"email" example:"admin@example.com" binding:"required,email"`
-	Username string      `json:"username" example:"admin" binding:"required,min=3,max=100"`
-	Password string      `json:"password" example:"password" binding:"required,min=8,max=100"`
-	Role     entity.Role `json:"role" example:"USER" default:"USER" binding:"required,oneof=USER ADMIN"`
+	Email            string  `json:"email" example:"admin@example.com" binding:"required,email"`
+	Username         string  `json:"username" example:"admin" binding:"required,min=3,max=100"`
+	Password         string  `json:"password" example:"password" binding:"required,min=8,max=100"`
+	OrganizationID   *uint64 `json:"organization_id"`
 }
 
 type RegistrationResponse struct {
@@ -35,4 +35,22 @@ type UpdateRequest struct {
 	Email    string      `json:"email" example:"admin@example.com"`
 	Password string      `json:"password" example:"password" min:"8" max:"100"`
 	Role     entity.Role `json:"role" example:"USER"`
+}
+
+type UserProfileResponse struct {
+	ID            uint64                     `json:"id"`
+	Email         string                     `json:"email"`
+	Username      string                     `json:"username"`
+	Role          entity.Role                `json:"role"`
+	CreatedAt     time.Time                  `json:"created_at"`
+	Organizations []UserOrganizationResponse `json:"organizations"`
+}
+
+type UserOrganizationResponse struct {
+	ID          uint64    `json:"id"`
+	Title       string    `json:"title"`
+	Tag         string    `json:"tag"`
+	Description string    `json:"description"`
+	OwnerID     uint64    `json:"owner_id"`
+	CreatedAt   time.Time `json:"created_at"`
 }

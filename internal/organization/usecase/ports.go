@@ -10,6 +10,7 @@ type OrganizationRepository interface {
 	GetByID(ctx context.Context, id uint64) (*entity.Organization, error)
 	GetByTag(ctx context.Context, tag string) (*entity.Organization, error)
 	GetByOwner(ctx context.Context, ownerID uint64) ([]entity.Organization, error)
+	GetByAccountEntities(ctx context.Context, accountID uint64) ([]entity.Organization, error)
 	GetAll(ctx context.Context) ([]entity.Organization, error)
 	Update(ctx context.Context, org *entity.Organization) error
 	Delete(ctx context.Context, id uint64) error

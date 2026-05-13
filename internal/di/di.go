@@ -1,12 +1,12 @@
 package di
 
 import (
+	"online-learning-platform-go-api/internal/gateway"
 	userAdaptors "online-learning-platform-go-api/internal/user/adaptors"
 	userUsecase "online-learning-platform-go-api/internal/user/usecase"
 
 	courseAdaptors "online-learning-platform-go-api/internal/course/adaptors"
 	courseUsecase "online-learning-platform-go-api/internal/course/usecase"
-
 	orgAdaptors "online-learning-platform-go-api/internal/organization/adaptors"
 	orgUsecase "online-learning-platform-go-api/internal/organization/usecase"
 
@@ -22,11 +22,19 @@ func NewProvider(db *gorm.DB) *Provider {
 }
 
 func (p *Provider) User() userUsecase.AccountUseCaseInterface {
-	return userUsecase.NewAccountUseCase(userAdaptors.NewRepository(p.db))
+	userRepo := userAdaptors.NewAccountRepository(p.db)
+	orgRepo := orgAdaptors.NewOrganizationRepository(p.db)
+	return userUsecase.NewAccountUseCase(userRepo, orgRepo)
 }
 
 func (p *Provider) Organization() orgUsecase.OrganizationUseCaseInterface {
 	return orgUsecase.NewOrganizationUseCase(orgAdaptors.NewOrganizationRepository(p.db))
+}
+
+func (p *Provider) OrganizationGateway() *gateway.OrganizationGateway {
+	orgUC := p.Organization()
+	userRepo := userAdaptors.NewAccountRepository(p.db)
+	return gateway.NewOrganizationGateway(orgUC, userRepo)
 }
 
 func (p *Provider) Course() courseUsecase.CourseUseCaseInterface {

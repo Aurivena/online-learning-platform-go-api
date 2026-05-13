@@ -70,6 +70,40 @@ Content-Type: application/json
 - JSON body (access_token, refresh_token)
 - HTTP cookies (httpOnly, secure)
 
+### GET /api/account/me
+
+Возвращает профиль текущего пользователя и список его организаций.
+
+**Request:**
+```
+GET /api/account/me
+Cookie: access_token=eyJhbGc...
+```
+
+**Response:**
+```json
+{
+  "code": 0,
+  "data": {
+    "id": 1,
+    "email": "user@example.com",
+    "username": "username",
+    "role": "USER",
+    "created_at": "2023-01-01T00:00:00Z",
+    "organizations": [
+      {
+        "id": 1,
+        "title": "Organization Name",
+        "tag": "ORG_TAG",
+        "description": "Organization description",
+        "owner_id": 1,
+        "created_at": "2023-01-01T00:00:00Z"
+      }
+    ]
+  }
+}
+```
+
 ### Файлы для запуска проекта
 ```.env
 POSTGRES_USER=postgres
@@ -83,14 +117,15 @@ STORAGE_PASSWORD=secretpassword
 STORAGE_PORT=9090
 STORAGE_UI_PORT=9091
 STORAGE_BUCKET=lms-bucket
-STORAGE_ENDPOINT=localhost:9000
+STORAGE_ENDPOINT=localhost:9090
+STORAGE_PUBLIC_URL=http://localhost:9090
 
 SERVER_ADDR=http://localhost
 SERVER_PORT=8080
 
 JWT_SECRET=super_long_secret_key_change_me
 
-CONFIG_PATH=./resources/config.yml
+CONFIG_PATH=../resources/config.yaml
 
 ACCESS_TOKEN=...
 REFRESH_TOKEN=...
@@ -98,12 +133,12 @@ REFRESH_TOKEN=...
 
 ```config.yaml
 minio:
-  url: ${SERVER_ADDR}:${SERVER_PORT}
-  access-key: ${STORAGE_USER}
-  secret-key: ${STORAGE_PASSWORD}
+  access_key: ${STORAGE_USER}
+  secret_key: ${STORAGE_PASSWORD}
   bucket: ${STORAGE_BUCKET}
   endpoint: ${STORAGE_ENDPOINT}
   sslmode: false
+  public_base_url: ${STORAGE_PUBLIC_URL}
 
 postgres:
   user: ${POSTGRES_USER}

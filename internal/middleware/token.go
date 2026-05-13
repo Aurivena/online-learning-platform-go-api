@@ -82,3 +82,21 @@ func parseToken(tokenString string, secret []byte) (*Claims, error) {
 
 	return nil, errors.New("invalid token")
 }
+
+func (m *Middleware) DecodeToken(c *gin.Context) {
+	accessToken, err := c.Cookie("access_token")
+	if err != nil {
+		c.Next()
+		return
+	}
+
+	claims, err := parseToken(accessToken, []byte(m.token.AccessToken))
+	if err != nil {
+		c.Next()
+		return
+	}
+
+	c.Set("userId", uint64(claims.UserID))
+	c.Set("role", claims.Role)
+	c.Next()
+}

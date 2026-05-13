@@ -2,11 +2,13 @@ package usecase
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"online-learning-platform-go-api/internal/course/dto"
 	"online-learning-platform-go-api/internal/course/entity"
 
 	"github.com/Aurivena/spond/v4/netsp"
+	"github.com/Aurivena/spond/v4/netstatus"
 )
 
 type ModuleUseCaseInterface interface {
@@ -14,7 +16,9 @@ type ModuleUseCaseInterface interface {
 	GetModule(ctx context.Context, id uint64) (*entity.Module, *netsp.Response[netsp.ErrorDetail])
 	UpdateModule(ctx context.Context, id uint64, input dto.UpdateModuleRequest) *netsp.Response[netsp.ErrorDetail]
 	DeleteModule(ctx context.Context, id uint64) *netsp.Response[netsp.ErrorDetail]
-	AddSlideToModule(ctx context.Context, moduleID uint64, input dto.AddSlideTModuleRequest) *netsp.Response[netsp.ErrorDetail]
+	AddSlideToModule(ctx context.Context, moduleID, slideID uint64, input dto.AddSlideTModuleRequest) *netsp.Response[netsp.ErrorDetail]
+	AttachSlideToModule(ctx context.Context, moduleID, slideID uint64) *netsp.Response[netsp.ErrorDetail]
+	ReorderSlides(ctx context.Context, moduleID uint64, slideIDs []uint64) *netsp.Response[netsp.ErrorDetail]
 	RemoveSlideFromModule(ctx context.Context, moduleID, slideID uint64) *netsp.Response[netsp.ErrorDetail]
 }
 
@@ -111,8 +115,8 @@ func (uc *ModuleUseCase) DeleteModule(ctx context.Context, id uint64) *netsp.Res
 	return nil
 }
 
-func (uc *ModuleUseCase) AddSlideToModule(ctx context.Context, moduleID uint64, input dto.AddSlideTModuleRequest) *netsp.Response[netsp.ErrorDetail] {
-	if _, err := uc.slideRepo.GetByID(ctx, input.SlideID); err != nil {
+func (uc *ModuleUseCase) AddSlideToModule(ctx context.Context, moduleID, slideID uint64, input dto.AddSlideTModuleRequest) *netsp.Response[netsp.ErrorDetail] {
+	if _, err := uc.slideRepo.GetByID(ctx, slideID); err != nil {
 		return netsp.BuildError(
 			http.StatusNotFound,
 			netsp.ErrorDetail{
@@ -123,7 +127,7 @@ func (uc *ModuleUseCase) AddSlideToModule(ctx context.Context, moduleID uint64, 
 		)
 	}
 
-	if err := uc.moduleRepo.AddSlide(ctx, moduleID, input.SlideID, input.Index); err != nil {
+	if err := uc.moduleRepo.AddSlide(ctx, moduleID, slideID, input.Index); err != nil {
 		return netsp.BuildError(
 			http.StatusBadRequest,
 			netsp.ErrorDetail{
@@ -134,6 +138,45 @@ func (uc *ModuleUseCase) AddSlideToModule(ctx context.Context, moduleID uint64, 
 		)
 	}
 
+	return nil
+}
+
+func (uc *ModuleUseCase) AttachSlideToModule(ctx context.Context, moduleID, slideID uint64) *netsp.Response[netsp.ErrorDetail] {
+	idx, err := uc.moduleRepo.NextSlideIndex(ctx, moduleID)
+	if err != nil {
+		return netsp.BuildError(
+			http.StatusInternalServerError,
+			netsp.ErrorDetail{
+				Title:    "Failed to Resolve Slide Order",
+				Message:  "Could not determine next slide index",
+				Solution: "Please try again later",
+			},
+		)
+	}
+	return uc.AddSlideToModule(ctx, moduleID, slideID, dto.AddSlideTModuleRequest{Index: idx})
+}
+
+func (uc *ModuleUseCase) ReorderSlides(ctx context.Context, moduleID uint64, slideIDs []uint64) *netsp.Response[netsp.ErrorDetail] {
+	if len(slideIDs) == 0 {
+		return netsp.BuildError(
+			http.StatusBadRequest,
+			netsp.ErrorDetail{
+				Title:    "Invalid Request",
+				Message:  "Slide order list is empty",
+				Solution: "Send a non-empty JSON array of slide IDs",
+			},
+		)
+	}
+	if err := uc.moduleRepo.ReorderSlides(ctx, moduleID, slideIDs); err != nil {
+		return netsp.BuildError(
+			http.StatusBadRequest,
+			netsp.ErrorDetail{
+				Title:    "Failed to Reorder Slides",
+				Message:  "Could not update slide order for this module",
+				Solution: "Ensure all IDs belong to the module and try again",
+			},
+		)
+	}
 	return nil
 }
 
@@ -157,6 +200,7 @@ type SlideUseCaseInterface interface {
 	GetSlide(ctx context.Context, id uint64) (*entity.Slide, *netsp.Response[netsp.ErrorDetail])
 	UpdateSlide(ctx context.Context, id uint64, input dto.UpdateSlideRequest) *netsp.Response[netsp.ErrorDetail]
 	DeleteSlide(ctx context.Context, id uint64) *netsp.Response[netsp.ErrorDetail]
+	CheckTestSlideOption(ctx context.Context, moduleID, slideID, optionID uint64) (bool, *netsp.Response[netsp.ErrorDetail])
 }
 
 type SlideUseCase struct {
@@ -172,6 +216,9 @@ func NewSlideUseCase(slideRepo SlideRepository, moduleRepo ModuleRepository) *Sl
 }
 
 func (uc *SlideUseCase) CreateSlide(ctx context.Context, input dto.CreateSlideRequest) (*entity.Slide, *netsp.Response[netsp.ErrorDetail]) {
+	if input.Payload == nil {
+		input.Payload = entity.PayloadJSON{}
+	}
 	slide := &entity.Slide{
 		Title:       input.Title,
 		Description: input.Description,
@@ -188,19 +235,6 @@ func (uc *SlideUseCase) CreateSlide(ctx context.Context, input dto.CreateSlideRe
 				Solution: "Please check your input and try again",
 			},
 		)
-	}
-
-	if input.ModuleID > 0 {
-		if err := uc.moduleRepo.AddSlide(ctx, input.ModuleID, slide.ID, 0); err != nil {
-			return nil, netsp.BuildError(
-				http.StatusBadRequest,
-				netsp.ErrorDetail{
-					Title:    "Failed to Add Slide to Module",
-					Message:  "Slide created but could not add to module",
-					Solution: "Module ID may be invalid",
-				},
-			)
-		}
 	}
 
 	return slide, nil
@@ -226,7 +260,7 @@ func (uc *SlideUseCase) UpdateSlide(ctx context.Context, id uint64, input dto.Up
 	slide, err := uc.slideRepo.GetByID(ctx, id)
 	if err != nil {
 		return netsp.BuildError(
-			http.StatusNotFound,
+			netstatus.CodeNotFound,
 			netsp.ErrorDetail{
 				Title:    "Slide Not Found",
 				Message:  "The requested slide does not exist",
@@ -249,8 +283,9 @@ func (uc *SlideUseCase) UpdateSlide(ctx context.Context, id uint64, input dto.Up
 	}
 
 	if err := uc.slideRepo.Update(ctx, slide); err != nil {
+		slog.Error("UpdateSlide: database update failed", "slide_id", id, "error", err)
 		return netsp.BuildError(
-			http.StatusInternalServerError,
+			netstatus.CodeInternalError,
 			netsp.ErrorDetail{
 				Title:    "Failed to Update Slide",
 				Message:  "Could not update slide in database",

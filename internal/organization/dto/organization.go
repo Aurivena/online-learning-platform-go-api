@@ -1,6 +1,9 @@
 package dto
 
-import "time"
+import (
+	userDTO "online-learning-platform-go-api/internal/user/dto"
+	"time"
+)
 
 type CreateOrganizationRequest struct {
 	Title       string `json:"title" binding:"required,min=1,max=125"`
@@ -14,13 +17,12 @@ type UpdateOrganizationRequest struct {
 }
 
 type OrganizationResponse struct {
-	ID          uint64    `json:"id"`
-	Title       string    `json:"title"`
-	Tag         string    `json:"tag"`
-	Description string    `json:"description"`
-	OwnerID     uint64    `json:"owner_id"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          uint64                `json:"id"`
+	Title       string                `json:"title"`
+	Tag         string                `json:"tag"`
+	Description string                `json:"description"`
+	Owner       userDTO.AccountResponse `json:"owner"`
+	CreatedAt   time.Time             `json:"created_at"`
 }
 
 type AddAccountToOrgRequest struct {

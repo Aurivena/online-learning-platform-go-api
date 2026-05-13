@@ -23,11 +23,12 @@ type Config struct {
 }
 
 type MinioConfig struct {
-	AccessKey string `yaml:"access_key"`
-	SecretKey string `yaml:"secret_key"`
-	Bucket    string `yaml:"bucket"`
-	Endpoint  string `yaml:"endpoint"`
-	SSL       bool   `yaml:"sslmode"`
+	AccessKey     string `yaml:"access_key"`
+	SecretKey     string `yaml:"secret_key"`
+	Bucket        string `yaml:"bucket"`
+	Endpoint      string `yaml:"endpoint"`
+	SSL           bool   `yaml:"sslmode"`
+	PublicBaseURL string `yaml:"public_base_url"` // optional, e.g. http://127.0.0.1:9000 — for payload.url (path-style /bucket/key)
 }
 
 type PostgresConfig struct {

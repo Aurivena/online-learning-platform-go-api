@@ -10,12 +10,14 @@ import (
 )
 
 type CourseUseCaseInterface interface {
-	CreateCourse(ctx context.Context, ownerID uint64, input dto.CreateCourseRequest) (*entity.Course, *netsp.Response[netsp.ErrorDetail])
+	CreateCourse(ctx context.Context, ownerID, organizationID uint64, input dto.CreateCourseRequest) (*entity.Course, *netsp.Response[netsp.ErrorDetail])
 	GetCourse(ctx context.Context, id uint64) (*entity.Course, *netsp.Response[netsp.ErrorDetail])
 	ListCourses(ctx context.Context, orgID uint64) ([]entity.Course, *netsp.Response[netsp.ErrorDetail])
 	UpdateCourse(ctx context.Context, id uint64, input dto.UpdateCourseRequest) *netsp.Response[netsp.ErrorDetail]
 	DeleteCourse(ctx context.Context, id uint64) *netsp.Response[netsp.ErrorDetail]
-	AddModuleToCourse(ctx context.Context, courseID uint64, input dto.AddModuleToCourseRequest) *netsp.Response[netsp.ErrorDetail]
+	AddModuleToCourse(ctx context.Context, courseID, moduleID uint64, input dto.AddModuleToCourseRequest) *netsp.Response[netsp.ErrorDetail]
+	AttachModuleToCourse(ctx context.Context, courseID, moduleID uint64) *netsp.Response[netsp.ErrorDetail]
+	ReorderModules(ctx context.Context, courseID uint64, moduleIDs []uint64) *netsp.Response[netsp.ErrorDetail]
 	RemoveModuleFromCourse(ctx context.Context, courseID, moduleID uint64) *netsp.Response[netsp.ErrorDetail]
 }
 
@@ -31,12 +33,12 @@ func NewCourseUseCase(courseRepo CourseRepository, moduleRepo ModuleRepository) 
 	}
 }
 
-func (uc *CourseUseCase) CreateCourse(ctx context.Context, ownerID uint64, input dto.CreateCourseRequest) (*entity.Course, *netsp.Response[netsp.ErrorDetail]) {
+func (uc *CourseUseCase) CreateCourse(ctx context.Context, ownerID, organizationID uint64, input dto.CreateCourseRequest) (*entity.Course, *netsp.Response[netsp.ErrorDetail]) {
 	course := &entity.Course{
 		Title:          input.Title,
 		Description:    input.Description,
 		Owner:          ownerID,
-		OrganizationID: input.OrganizationID,
+		OrganizationID: organizationID,
 	}
 
 	if err := uc.courseRepo.Create(ctx, course); err != nil {
@@ -138,8 +140,8 @@ func (uc *CourseUseCase) DeleteCourse(ctx context.Context, id uint64) *netsp.Res
 	return nil
 }
 
-func (uc *CourseUseCase) AddModuleToCourse(ctx context.Context, courseID uint64, input dto.AddModuleToCourseRequest) *netsp.Response[netsp.ErrorDetail] {
-	if _, err := uc.moduleRepo.GetByID(ctx, input.ModuleID); err != nil {
+func (uc *CourseUseCase) AddModuleToCourse(ctx context.Context, courseID, moduleID uint64, input dto.AddModuleToCourseRequest) *netsp.Response[netsp.ErrorDetail] {
+	if _, err := uc.moduleRepo.GetByID(ctx, moduleID); err != nil {
 		return netsp.BuildError(
 			http.StatusNotFound,
 			netsp.ErrorDetail{
@@ -150,7 +152,7 @@ func (uc *CourseUseCase) AddModuleToCourse(ctx context.Context, courseID uint64,
 		)
 	}
 
-	if err := uc.courseRepo.AddModule(ctx, courseID, input.ModuleID, input.Index); err != nil {
+	if err := uc.courseRepo.AddModule(ctx, courseID, moduleID, input.Index); err != nil {
 		return netsp.BuildError(
 			http.StatusBadRequest,
 			netsp.ErrorDetail{
@@ -161,6 +163,45 @@ func (uc *CourseUseCase) AddModuleToCourse(ctx context.Context, courseID uint64,
 		)
 	}
 
+	return nil
+}
+
+func (uc *CourseUseCase) AttachModuleToCourse(ctx context.Context, courseID, moduleID uint64) *netsp.Response[netsp.ErrorDetail] {
+	idx, err := uc.courseRepo.NextModuleIndex(ctx, courseID)
+	if err != nil {
+		return netsp.BuildError(
+			http.StatusInternalServerError,
+			netsp.ErrorDetail{
+				Title:    "Failed to Resolve Module Order",
+				Message:  "Could not determine next module index",
+				Solution: "Please try again later",
+			},
+		)
+	}
+	return uc.AddModuleToCourse(ctx, courseID, moduleID, dto.AddModuleToCourseRequest{Index: idx})
+}
+
+func (uc *CourseUseCase) ReorderModules(ctx context.Context, courseID uint64, moduleIDs []uint64) *netsp.Response[netsp.ErrorDetail] {
+	if len(moduleIDs) == 0 {
+		return netsp.BuildError(
+			http.StatusBadRequest,
+			netsp.ErrorDetail{
+				Title:    "Invalid Request",
+				Message:  "Module order list is empty",
+				Solution: "Send a non-empty JSON array of module IDs",
+			},
+		)
+	}
+	if err := uc.courseRepo.ReorderModules(ctx, courseID, moduleIDs); err != nil {
+		return netsp.BuildError(
+			http.StatusBadRequest,
+			netsp.ErrorDetail{
+				Title:    "Failed to Reorder Modules",
+				Message:  "Could not update module order for this course",
+				Solution: "Ensure all IDs belong to the course and try again",
+			},
+		)
+	}
 	return nil
 }
 

@@ -28,20 +28,6 @@ func (u *AccountUseCase) Login(ctx context.Context, input dto.LoginRequest) (*Lo
 		)
 	}
 
-	if account == nil {
-		account, err = u.repo.GetByUsername(ctx, input.Input)
-		if err != nil {
-			return nil, netsp.BuildError(
-				netstatus.CodeNotFound,
-				netsp.ErrorDetail{
-					Title:    "Account Not Found",
-					Message:  "No account found with this username",
-					Solution: "Please check your username or register a new account",
-				},
-			)
-		}
-	}
-
 	if err := domain.PasswordVerify(account.PasswordHash, input.Password); err != nil {
 		return nil, netsp.BuildError(
 			netstatus.CodeUnauthorized,
