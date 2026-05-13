@@ -226,14 +226,7 @@ func convertToCourseResponse(course *entity.Course) dto.CourseResponse {
 	for i, m := range course.Modules {
 		slides := make([]dto.SlideResponse, len(m.Slides))
 		for j, s := range m.Slides {
-			slides[j] = dto.SlideResponse{
-				ID:          s.ID,
-				Title:       s.Title,
-				Description: s.Description,
-				SlideType:   s.SlideType,
-				Payload:     s.Payload,
-				CreatedAt:   s.CreatedAt,
-			}
+			slides[j] = slideEntityToResponse(s)
 		}
 		modules[i] = dto.ModuleResponse{
 			ID:        m.ID,

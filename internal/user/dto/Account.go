@@ -6,10 +6,10 @@ import (
 )
 
 type RegistrationRequest struct {
-	Email            string  `json:"email" example:"admin@example.com" binding:"required,email"`
-	Username         string  `json:"username" example:"admin" binding:"required,min=3,max=100"`
-	Password         string  `json:"password" example:"password" binding:"required,min=8,max=100"`
-	OrganizationID   *uint64 `json:"organization_id"`
+	Email          string  `json:"email" example:"admin@example.com" binding:"required,email"`
+	Username       string  `json:"username" example:"admin" binding:"required,min=3,max=100"`
+	Password       string  `json:"password" example:"password" binding:"required,min=8,max=100"`
+	OrganizationID *uint64 `json:"organization_id"`
 }
 
 type RegistrationResponse struct {

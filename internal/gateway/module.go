@@ -146,14 +146,7 @@ func (g *CourseGateway) GetModule(c *gin.Context) {
 
 	slides := make([]dto.SlideResponse, len(module.Slides))
 	for i, s := range module.Slides {
-		slides[i] = dto.SlideResponse{
-			ID:          s.ID,
-			Title:       s.Title,
-			Description: s.Description,
-			SlideType:   s.SlideType,
-			Payload:     s.Payload,
-			CreatedAt:   s.CreatedAt,
-		}
+		slides[i] = slideEntityToResponse(s)
 	}
 
 	netoutput.WriteHTTP(c.Writer, netsp.Response[dto.ModuleResponse]{
@@ -316,14 +309,7 @@ func (g *CourseGateway) CreateSlide(c *gin.Context) {
 
 	netoutput.WriteHTTP(c.Writer, netsp.Response[dto.SlideResponse]{
 		Code: netstatus.CodeSuccess,
-		Data: dto.SlideResponse{
-			ID:          slide.ID,
-			Title:       slide.Title,
-			Description: slide.Description,
-			SlideType:   slide.SlideType,
-			Payload:     slide.Payload,
-			CreatedAt:   slide.CreatedAt,
-		},
+		Data: slideEntityToResponse(*slide),
 	})
 }
 
@@ -362,14 +348,7 @@ func (g *CourseGateway) GetSlide(c *gin.Context) {
 
 	netoutput.WriteHTTP(c.Writer, netsp.Response[dto.SlideResponse]{
 		Code: netstatus.CodeSuccess,
-		Data: dto.SlideResponse{
-			ID:          slide.ID,
-			Title:       slide.Title,
-			Description: slide.Description,
-			SlideType:   slide.SlideType,
-			Payload:     slide.Payload,
-			CreatedAt:   slide.CreatedAt,
-		},
+		Data: slideEntityToResponse(*slide),
 	})
 }
 

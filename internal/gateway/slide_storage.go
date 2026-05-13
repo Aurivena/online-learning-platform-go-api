@@ -3,15 +3,22 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"mime/multipart"
+	"net/http"
+	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
 
+	"github.com/Aurivena/spond/v4/netoutput"
 	"github.com/Aurivena/spond/v4/netsp"
 	"github.com/Aurivena/spond/v4/netstatus"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"online-learning-platform-go-api/internal/course/dto"
 	"online-learning-platform-go-api/internal/course/entity"
 )
 
@@ -111,4 +118,136 @@ func (g *CourseGateway) removeSlideObject(ctx context.Context, p entity.PayloadJ
 		return
 	}
 	_ = g.files.Remove(ctx, k)
+}
+
+// encodeObjectKeyForURLPath escapes each path segment so keys like "slides/1/name with spaces.docx"
+// can be used in a single path wildcard after /api/files/.
+func encodeObjectKeyForURLPath(objectKey string) string {
+	objectKey = strings.Trim(objectKey, "/")
+	if objectKey == "" {
+		return ""
+	}
+	parts := strings.Split(objectKey, "/")
+	for i := range parts {
+		parts[i] = url.PathEscape(parts[i])
+	}
+	return strings.Join(parts, "/")
+}
+
+// slidePayloadForAPIResponse returns a payload safe to expose to clients; for FILE slides with
+// object_key it adds file_src (same-origin URL) so the SPA does not guess /api/files/{filename}.
+func slidePayloadForAPIResponse(p entity.PayloadJSON, st entity.SlideType) entity.PayloadJSON {
+	if st != entity.SlideTypeFile {
+		return p
+	}
+	if p == nil {
+		return nil
+	}
+	out := clonePayload(p)
+	k := objectKeyFromPayload(out)
+	if k == "" {
+		return out
+	}
+	enc := encodeObjectKeyForURLPath(k)
+	if enc != "" {
+		out["file_src"] = "/api/files/" + enc
+	}
+	return out
+}
+
+func slideEntityToResponse(s entity.Slide) dto.SlideResponse {
+	return dto.SlideResponse{
+		ID:          s.ID,
+		Title:       s.Title,
+		Description: s.Description,
+		SlideType:   s.SlideType,
+		Payload:     slidePayloadForAPIResponse(s.Payload, s.SlideType),
+		CreatedAt:   s.CreatedAt,
+	}
+}
+
+// writeObjectKeyResponse streams an object from storage by key (slides/...). Returns false if response already sent with error.
+func (g *CourseGateway) writeObjectKeyResponse(c *gin.Context, objectKey string) bool {
+	if g.files == nil {
+		c.Status(http.StatusServiceUnavailable)
+		return false
+	}
+	if objectKey == "" || strings.Contains(objectKey, "..") || !strings.HasPrefix(objectKey, "slides/") {
+		c.Status(http.StatusNotFound)
+		return false
+	}
+	rc, meta, err := g.files.Open(c.Request.Context(), objectKey)
+	if err != nil {
+		c.Status(http.StatusNotFound)
+		return false
+	}
+	defer rc.Close()
+	if meta.ContentType != "" {
+		c.Header("Content-Type", meta.ContentType)
+	}
+	if meta.Size > 0 {
+		c.Header("Content-Length", fmt.Sprintf("%d", meta.Size))
+	}
+	c.Header("Content-Disposition", "inline")
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, rc)
+	return true
+}
+
+// ServeUploadedObject streams a file from object storage. Path must be the object_key (e.g. slides/<moduleId>/<uuid>.ext).
+func (g *CourseGateway) ServeUploadedObject(c *gin.Context) {
+	raw := strings.TrimPrefix(c.Param("filepath"), "/")
+	key, err := url.PathUnescape(raw)
+	if err != nil || key == "" {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	_ = g.writeObjectKeyResponse(c, key)
+}
+
+// GetSlideFile streams the FILE slide binary for GET .../slides/:slideId/file (avoids collision with .../slides/:slideId/:optionId).
+func (g *CourseGateway) GetSlideFile(c *gin.Context) {
+	moduleID, errMod := strconv.ParseUint(c.Param("moduleId"), 10, 64)
+	slideID, errSlide := strconv.ParseUint(c.Param("slideId"), 10, 64)
+	if errSlide != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid slide ID"})
+		return
+	}
+	if errMod != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid module ID"})
+		return
+	}
+
+	mod, errResp := g.moduleUC.GetModule(c, moduleID)
+	if errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
+		return
+	}
+	found := false
+	for i := range mod.Slides {
+		if mod.Slides[i].ID == slideID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Slide not found in this module"})
+		return
+	}
+
+	slide, errResp := g.slideUC.GetSlide(c, slideID)
+	if errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
+		return
+	}
+	if slide.SlideType != entity.SlideTypeFile {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	key := objectKeyFromPayload(slide.Payload)
+	if key == "" {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	_ = g.writeObjectKeyResponse(c, key)
 }

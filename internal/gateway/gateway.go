@@ -47,6 +47,8 @@ func SetupRouter(cfg config.Server, mw *middleware.Middleware, userGateway *Gate
 
 	api := gHttp.Group("/api")
 	{
+		api.GET("/files/*filepath", mw.DecodeToken, courseGateway.ServeUploadedObject)
+
 		auth := api.Group("/auth")
 		{
 			auth.POST("/register", userGateway.Registration)
@@ -91,6 +93,7 @@ func SetupRouter(cfg config.Server, mw *middleware.Middleware, userGateway *Gate
 					{
 						slides.PUT("/reorder", mw.DecodeToken, mw.AuthRequired, courseGateway.ReorderModuleSlides)
 						slides.POST("", mw.DecodeToken, mw.AuthRequired, courseGateway.CreateSlide)
+						slides.GET("/:slideId/file", mw.DecodeToken, courseGateway.GetSlideFile)
 						slides.GET("/:slideId/:optionId", mw.DecodeToken, courseGateway.CheckSlideOption)
 						slides.GET("/:slideId", mw.DecodeToken, courseGateway.GetSlide)
 						slides.PUT("/:slideId", mw.DecodeToken, mw.AuthRequired, courseGateway.UpdateSlide)
@@ -112,6 +115,7 @@ func SetupRouter(cfg config.Server, mw *middleware.Middleware, userGateway *Gate
 		{
 			moduleShortcuts.POST("/:moduleId/slides", mw.DecodeToken, mw.AuthRequired, courseGateway.CreateSlide)
 			moduleShortcuts.PUT("/:moduleId/slides/reorder", mw.DecodeToken, mw.AuthRequired, courseGateway.ReorderModuleSlides)
+			moduleShortcuts.GET("/:moduleId/slides/:slideId/file", mw.DecodeToken, courseGateway.GetSlideFile)
 			moduleShortcuts.GET("/:moduleId/slides/:slideId/:optionId", mw.DecodeToken, courseGateway.CheckSlideOption)
 			moduleShortcuts.GET("/:moduleId/slides/:slideId", mw.DecodeToken, courseGateway.GetSlide)
 			moduleShortcuts.PUT("/:moduleId/slides/:slideId", mw.DecodeToken, mw.AuthRequired, courseGateway.UpdateSlide)
