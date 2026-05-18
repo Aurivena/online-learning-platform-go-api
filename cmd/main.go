@@ -63,6 +63,7 @@ func main() {
 		provider.Course(),
 		provider.Module(),
 		provider.Slide(),
+		provider.Organization(),
 		fileBucket,
 		cfg.Minio.PublicBaseURL,
 	)

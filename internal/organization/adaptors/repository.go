@@ -3,6 +3,7 @@ package adaptors
 import (
 	"context"
 	"online-learning-platform-go-api/internal/organization/entity"
+	userEntity "online-learning-platform-go-api/internal/user/entity"
 
 	"gorm.io/gorm"
 )
@@ -78,7 +79,7 @@ func (r *OrganizationRepository) AddAccount(ctx context.Context, orgID, accountI
 func (r *OrganizationRepository) RemoveAccount(ctx context.Context, orgID, accountID uint64) error {
 	return r.db.WithContext(ctx).Table("organization_accounts").
 		Where("organization_id = ? AND account_id = ?", orgID, accountID).
-		Delete(nil).Error
+		Delete(&struct{}{}).Error
 }
 
 func (r *OrganizationRepository) GetAccounts(ctx context.Context, orgID uint64) ([]uint64, error) {
@@ -96,6 +97,18 @@ func (r *OrganizationRepository) GetAccounts(ctx context.Context, orgID uint64) 
 	}
 
 	return result, err
+}
+
+func (r *OrganizationRepository) GetAccountEntities(ctx context.Context, orgID uint64) ([]userEntity.Account, error) {
+	var accounts []userEntity.Account
+	err := r.db.WithContext(ctx).
+		Table("accounts").
+		Select("accounts.*").
+		Joins("inner join organization_accounts oa on oa.account_id = accounts.id").
+		Where("oa.organization_id = ?", orgID).
+		Order("accounts.created_at desc").
+		Find(&accounts).Error
+	return accounts, err
 }
 
 func (r *OrganizationRepository) IsMember(ctx context.Context, orgID, accountID uint64) (bool, error) {

@@ -14,6 +14,7 @@ import (
 type ModuleUseCaseInterface interface {
 	CreateModule(ctx context.Context, input dto.CreateModuleRequest) (*entity.Module, *netsp.Response[netsp.ErrorDetail])
 	GetModule(ctx context.Context, id uint64) (*entity.Module, *netsp.Response[netsp.ErrorDetail])
+	GetModuleCourseID(ctx context.Context, moduleID uint64) (uint64, *netsp.Response[netsp.ErrorDetail])
 	UpdateModule(ctx context.Context, id uint64, input dto.UpdateModuleRequest) *netsp.Response[netsp.ErrorDetail]
 	DeleteModule(ctx context.Context, id uint64) *netsp.Response[netsp.ErrorDetail]
 	AddSlideToModule(ctx context.Context, moduleID, slideID uint64, input dto.AddSlideTModuleRequest) *netsp.Response[netsp.ErrorDetail]
@@ -67,6 +68,21 @@ func (uc *ModuleUseCase) GetModule(ctx context.Context, id uint64) (*entity.Modu
 	}
 
 	return module, nil
+}
+
+func (uc *ModuleUseCase) GetModuleCourseID(ctx context.Context, moduleID uint64) (uint64, *netsp.Response[netsp.ErrorDetail]) {
+	courseID, err := uc.moduleRepo.GetCourseIDByModuleID(ctx, moduleID)
+	if err != nil {
+		return 0, netsp.BuildError(
+			http.StatusNotFound,
+			netsp.ErrorDetail{
+				Title:    "Course Not Found",
+				Message:  "Could not resolve parent course for this module",
+				Solution: "Please check that module exists and is attached to a course",
+			},
+		)
+	}
+	return courseID, nil
 }
 
 func (uc *ModuleUseCase) UpdateModule(ctx context.Context, id uint64, input dto.UpdateModuleRequest) *netsp.Response[netsp.ErrorDetail] {
@@ -200,18 +216,23 @@ type SlideUseCaseInterface interface {
 	GetSlide(ctx context.Context, id uint64) (*entity.Slide, *netsp.Response[netsp.ErrorDetail])
 	UpdateSlide(ctx context.Context, id uint64, input dto.UpdateSlideRequest) *netsp.Response[netsp.ErrorDetail]
 	DeleteSlide(ctx context.Context, id uint64) *netsp.Response[netsp.ErrorDetail]
-	CheckTestSlideOption(ctx context.Context, moduleID, slideID, optionID uint64) (bool, *netsp.Response[netsp.ErrorDetail])
+	CheckTestSlideOption(ctx context.Context, accountID, moduleID, slideID, optionID uint64) (bool, *netsp.Response[netsp.ErrorDetail])
+	GetTestResultForAccount(ctx context.Context, accountID, slideID uint64) (*TestResultRecord, *netsp.Response[netsp.ErrorDetail])
+	ListTestResults(ctx context.Context, orgID *uint64) ([]TestResultRecord, *netsp.Response[netsp.ErrorDetail])
+	ListCourseProgress(ctx context.Context, orgID *uint64) ([]CourseProgressRecord, *netsp.Response[netsp.ErrorDetail])
 }
 
 type SlideUseCase struct {
 	slideRepo  SlideRepository
 	moduleRepo ModuleRepository
+	resultRepo TestResultRepository
 }
 
-func NewSlideUseCase(slideRepo SlideRepository, moduleRepo ModuleRepository) *SlideUseCase {
+func NewSlideUseCase(slideRepo SlideRepository, moduleRepo ModuleRepository, resultRepo TestResultRepository) *SlideUseCase {
 	return &SlideUseCase{
 		slideRepo:  slideRepo,
 		moduleRepo: moduleRepo,
+		resultRepo: resultRepo,
 	}
 }
 

@@ -1,0 +1,26 @@
+# Keys must match config.MinioConfig yaml tags (access_key, not access-key).
+minio:
+  access_key: ${STORAGE_USER}
+  secret_key: ${STORAGE_PASSWORD}
+  bucket: ${STORAGE_BUCKET}
+  endpoint: ${STORAGE_ENDPOINT}
+  sslmode: false
+  # optional: browser URL prefix for slide FILE payload "url" (MinIO path-style: {public_base_url}/{bucket}/{object_key})
+  public_base_url: ${STORAGE_PUBLIC_URL}
+
+postgres:
+  user: ${POSTGRES_USER}
+  password: ${POSTGRES_PASSWORD}
+  database: ${POSTGRES_DATABASE}
+  host: ${POSTGRES_HOST}
+  port: ${POSTGRES_PORT}
+  sslmode: disable
+
+server:
+  addr: ${SERVER_ADDR}
+  port: ${SERVER_PORT}
+  server-domain: ${SERVER_DOMAIN}
+
+token:
+  access-token: ${ACCESS_TOKEN}
+  refresh-token: ${REFRESH_TOKEN}

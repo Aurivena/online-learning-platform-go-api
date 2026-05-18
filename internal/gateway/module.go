@@ -99,7 +99,11 @@ func (g *CourseGateway) bindUpdateSlideRequest(c *gin.Context) (dto.UpdateSlideR
 func (g *CourseGateway) CreateModule(c *gin.Context) {
 	courseID, err := strconv.ParseUint(c.Param("courseId"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid course ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Некорректный ID курса"})
+		return
+	}
+	if _, errResp := g.ensureCourseWritePermissionByID(c, courseID); errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
@@ -134,7 +138,7 @@ func (g *CourseGateway) CreateModule(c *gin.Context) {
 func (g *CourseGateway) GetModule(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("moduleId"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid module ID"})
+		c.JSON(400, gin.H{"error": "Некорректный ID модуля"})
 		return
 	}
 
@@ -163,7 +167,11 @@ func (g *CourseGateway) GetModule(c *gin.Context) {
 func (g *CourseGateway) UpdateModule(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("moduleId"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid module ID"})
+		c.JSON(400, gin.H{"error": "Некорректный ID модуля"})
+		return
+	}
+	if _, errResp := g.ensureCourseWritePermissionFromRequest(c); errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
@@ -188,7 +196,11 @@ func (g *CourseGateway) UpdateModule(c *gin.Context) {
 func (g *CourseGateway) DeleteModule(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("moduleId"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid module ID"})
+		c.JSON(400, gin.H{"error": "Некорректный ID модуля"})
+		return
+	}
+	if _, errResp := g.ensureCourseWritePermissionFromRequest(c); errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
@@ -220,13 +232,18 @@ func (g *CourseGateway) DeleteModule(c *gin.Context) {
 func (g *CourseGateway) AddSlideToModule(c *gin.Context) {
 	moduleID, err := strconv.ParseUint(c.Param("moduleId"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid module ID"})
+		c.JSON(400, gin.H{"error": "Некорректный ID модуля"})
 		return
 	}
 
 	slideID, err := strconv.ParseUint(c.Param("slideId"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid slide ID"})
+		c.JSON(400, gin.H{"error": "Некорректный ID урока"})
+		return
+	}
+
+	if _, errResp := g.ensureCourseWritePermissionFromRequest(c); errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
@@ -251,13 +268,18 @@ func (g *CourseGateway) AddSlideToModule(c *gin.Context) {
 func (g *CourseGateway) RemoveSlideFromModule(c *gin.Context) {
 	moduleID, err := strconv.ParseUint(c.Param("moduleId"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid module ID"})
+		c.JSON(400, gin.H{"error": "Некорректный ID модуля"})
 		return
 	}
 
 	slideID, err := strconv.ParseUint(c.Param("slideId"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid slide ID"})
+		c.JSON(400, gin.H{"error": "Некорректный ID урока"})
+		return
+	}
+
+	if _, errResp := g.ensureCourseWritePermissionFromRequest(c); errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
@@ -276,13 +298,23 @@ func (g *CourseGateway) RemoveSlideFromModule(c *gin.Context) {
 func (g *CourseGateway) CreateSlide(c *gin.Context) {
 	moduleID, err := strconv.ParseUint(c.Param("moduleId"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid module ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Некорректный ID модуля"})
+		return
+	}
+
+	if _, errResp := g.ensureCourseWritePermissionFromRequest(c); errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
 	input, fileHdr, err := g.bindCreateSlideRequest(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if input.SlideType == entity.SlideTypeFile && fileHdr == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Для урока с файлом нужно загрузить файл"})
 		return
 	}
 
@@ -317,7 +349,7 @@ func (g *CourseGateway) GetSlide(c *gin.Context) {
 	moduleID, errMod := strconv.ParseUint(c.Param("moduleId"), 10, 64)
 	id, err := strconv.ParseUint(c.Param("slideId"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid slide ID"})
+		c.JSON(400, gin.H{"error": "Некорректный ID урока"})
 		return
 	}
 
@@ -335,7 +367,7 @@ func (g *CourseGateway) GetSlide(c *gin.Context) {
 			}
 		}
 		if !found {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Slide not found in this module"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "Урок не найден в этом модуле"})
 			return
 		}
 	}
@@ -346,9 +378,29 @@ func (g *CourseGateway) GetSlide(c *gin.Context) {
 		return
 	}
 
+	response := slideEntityToResponse(*slide)
+	if response.SlideType == entity.SlideTypeTest {
+		payload := clonePayload(response.Payload)
+		delete(payload, "isRight")
+		delete(payload, "is_right")
+		payload["is_right"] = nil
+
+		if accountID, _, ok := currentAuth(c); ok {
+			result, resultErr := g.slideUC.GetTestResultForAccount(c, accountID, id)
+			if resultErr != nil {
+				netoutput.WriteHTTP(c.Writer, *resultErr)
+				return
+			}
+			if result != nil {
+				payload["is_right"] = result.IsRight
+			}
+		}
+		response.Payload = payload
+	}
+
 	netoutput.WriteHTTP(c.Writer, netsp.Response[dto.SlideResponse]{
 		Code: netstatus.CodeSuccess,
-		Data: slideEntityToResponse(*slide),
+		Data: response,
 	})
 }
 
@@ -363,13 +415,19 @@ func (g *CourseGateway) CheckSlideOption(c *gin.Context) {
 	}
 	if errMod != nil {
 		slog.Warn("CheckSlideOption: invalid module id", "err", errMod)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid module ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Некорректный ID модуля"})
+		return
+	}
+	accountID, _, okAuth := currentAuth(c)
+	if !okAuth {
+		errResp := authRequiredError()
+		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
 	slog.Info("CheckSlideOption", "module_id", moduleID, "slide_id", slideID, "option_id", optionID)
 
-	ok, errResp := g.slideUC.CheckTestSlideOption(c, moduleID, slideID, optionID)
+	ok, errResp := g.slideUC.CheckTestSlideOption(c, accountID, moduleID, slideID, optionID)
 	if errResp != nil {
 		slog.Warn("CheckSlideOption: usecase error", "module_id", moduleID, "slide_id", slideID, "option_id", optionID, "net_code", errResp.Code)
 		netoutput.WriteHTTP(c.Writer, *errResp)
@@ -387,7 +445,12 @@ func (g *CourseGateway) UpdateSlide(c *gin.Context) {
 	moduleID, errMod := strconv.ParseUint(c.Param("moduleId"), 10, 64)
 	id, err := strconv.ParseUint(c.Param("slideId"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid slide ID"})
+		c.JSON(400, gin.H{"error": "Некорректный ID урока"})
+		return
+	}
+
+	if _, errResp := g.ensureCourseWritePermissionFromRequest(c); errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
@@ -405,7 +468,7 @@ func (g *CourseGateway) UpdateSlide(c *gin.Context) {
 			}
 		}
 		if !found {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Slide not found in this module"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "Урок не найден в этом модуле"})
 			return
 		}
 	}
@@ -438,6 +501,10 @@ func (g *CourseGateway) UpdateSlide(c *gin.Context) {
 		}
 	}
 	input.Payload = merged
+	if st == entity.SlideTypeFile && fileHdr == nil && !payloadHasFileReference(merged) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Урок с файлом должен содержать корректную ссылку на файл"})
+		return
+	}
 
 	newKey := objectKeyFromPayload(merged)
 	errResp = g.slideUC.UpdateSlide(c, id, input)
@@ -463,7 +530,12 @@ func (g *CourseGateway) DeleteSlide(c *gin.Context) {
 	moduleID, errMod := strconv.ParseUint(c.Param("moduleId"), 10, 64)
 	id, err := strconv.ParseUint(c.Param("slideId"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid slide ID"})
+		c.JSON(400, gin.H{"error": "Некорректный ID урока"})
+		return
+	}
+
+	if _, errResp := g.ensureCourseWritePermissionFromRequest(c); errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
@@ -483,7 +555,7 @@ func (g *CourseGateway) DeleteSlide(c *gin.Context) {
 			}
 		}
 		if !found {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Slide not found in this module"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "Урок не найден в этом модуле"})
 			return
 		}
 	} else {
@@ -512,7 +584,12 @@ func (g *CourseGateway) DeleteSlide(c *gin.Context) {
 func (g *CourseGateway) ReorderCourseModules(c *gin.Context) {
 	courseID, err := strconv.ParseUint(c.Param("courseId"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid course ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Некорректный ID курса"})
+		return
+	}
+
+	if _, errResp := g.ensureCourseWritePermissionByID(c, courseID); errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
@@ -536,7 +613,12 @@ func (g *CourseGateway) ReorderCourseModules(c *gin.Context) {
 func (g *CourseGateway) ReorderModuleSlides(c *gin.Context) {
 	moduleID, err := strconv.ParseUint(c.Param("moduleId"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid module ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Некорректный ID модуля"})
+		return
+	}
+
+	if _, errResp := g.ensureCourseWritePermissionFromRequest(c); errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 

@@ -52,5 +52,6 @@ func (p *Provider) Module() courseUsecase.ModuleUseCaseInterface {
 func (p *Provider) Slide() courseUsecase.SlideUseCaseInterface {
 	slideRepo := courseAdaptors.NewSlideRepository(p.db)
 	moduleRepo := courseAdaptors.NewModuleRepository(p.db)
-	return courseUsecase.NewSlideUseCase(slideRepo, moduleRepo)
+	resultRepo := courseAdaptors.NewTestResultRepository(p.db)
+	return courseUsecase.NewSlideUseCase(slideRepo, moduleRepo, resultRepo)
 }

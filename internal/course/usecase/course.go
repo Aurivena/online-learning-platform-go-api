@@ -13,8 +13,11 @@ type CourseUseCaseInterface interface {
 	CreateCourse(ctx context.Context, ownerID, organizationID uint64, input dto.CreateCourseRequest) (*entity.Course, *netsp.Response[netsp.ErrorDetail])
 	GetCourse(ctx context.Context, id uint64) (*entity.Course, *netsp.Response[netsp.ErrorDetail])
 	ListCourses(ctx context.Context, orgID uint64) ([]entity.Course, *netsp.Response[netsp.ErrorDetail])
+	ListAllCourses(ctx context.Context) ([]entity.Course, *netsp.Response[netsp.ErrorDetail])
 	UpdateCourse(ctx context.Context, id uint64, input dto.UpdateCourseRequest) *netsp.Response[netsp.ErrorDetail]
 	DeleteCourse(ctx context.Context, id uint64) *netsp.Response[netsp.ErrorDetail]
+	SetCourseOrganizations(ctx context.Context, courseID uint64, organizationIDs []uint64) *netsp.Response[netsp.ErrorDetail]
+	IsCourseLinkedToOrganization(ctx context.Context, courseID, orgID uint64) (bool, *netsp.Response[netsp.ErrorDetail])
 	AddModuleToCourse(ctx context.Context, courseID, moduleID uint64, input dto.AddModuleToCourseRequest) *netsp.Response[netsp.ErrorDetail]
 	AttachModuleToCourse(ctx context.Context, courseID, moduleID uint64) *netsp.Response[netsp.ErrorDetail]
 	ReorderModules(ctx context.Context, courseID uint64, moduleIDs []uint64) *netsp.Response[netsp.ErrorDetail]
@@ -91,6 +94,24 @@ func (uc *CourseUseCase) ListCourses(ctx context.Context, orgID uint64) ([]entit
 	return courses, nil
 }
 
+func (uc *CourseUseCase) ListAllCourses(ctx context.Context) ([]entity.Course, *netsp.Response[netsp.ErrorDetail]) {
+	courses, err := uc.courseRepo.GetAll(ctx)
+	if err != nil {
+		return nil, netsp.BuildError(
+			http.StatusInternalServerError,
+			netsp.ErrorDetail{
+				Title:    "Не удалось загрузить пул курсов",
+				Message:  "Не удалось получить список всех курсов из базы данных",
+				Solution: "Повторите попытку позже",
+			},
+		)
+	}
+	if courses == nil {
+		courses = []entity.Course{}
+	}
+	return courses, nil
+}
+
 func (uc *CourseUseCase) UpdateCourse(ctx context.Context, id uint64, input dto.UpdateCourseRequest) *netsp.Response[netsp.ErrorDetail] {
 	course, err := uc.courseRepo.GetByID(ctx, id)
 	if err != nil {
@@ -138,6 +159,45 @@ func (uc *CourseUseCase) DeleteCourse(ctx context.Context, id uint64) *netsp.Res
 	}
 
 	return nil
+}
+
+func (uc *CourseUseCase) SetCourseOrganizations(ctx context.Context, courseID uint64, organizationIDs []uint64) *netsp.Response[netsp.ErrorDetail] {
+	if _, err := uc.courseRepo.GetByID(ctx, courseID); err != nil {
+		return netsp.BuildError(
+			http.StatusNotFound,
+			netsp.ErrorDetail{
+				Title:    "Курс не найден",
+				Message:  "Запрошенный курс не существует",
+				Solution: "Проверьте ID курса и повторите попытку",
+			},
+		)
+	}
+	if err := uc.courseRepo.SetOrganizations(ctx, courseID, uniqueUint64(organizationIDs)); err != nil {
+		return netsp.BuildError(
+			http.StatusBadRequest,
+			netsp.ErrorDetail{
+				Title:    "Не удалось обновить привязки курса",
+				Message:  "Не удалось связать курс с выбранными подразделениями",
+				Solution: "Проверьте подразделения и повторите попытку",
+			},
+		)
+	}
+	return nil
+}
+
+func (uc *CourseUseCase) IsCourseLinkedToOrganization(ctx context.Context, courseID, orgID uint64) (bool, *netsp.Response[netsp.ErrorDetail]) {
+	linked, err := uc.courseRepo.IsLinkedToOrganization(ctx, courseID, orgID)
+	if err != nil {
+		return false, netsp.BuildError(
+			http.StatusInternalServerError,
+			netsp.ErrorDetail{
+				Title:    "Не удалось проверить курс",
+				Message:  "Не удалось проверить привязку курса к подразделению",
+				Solution: "Повторите попытку позже",
+			},
+		)
+	}
+	return linked, nil
 }
 
 func (uc *CourseUseCase) AddModuleToCourse(ctx context.Context, courseID, moduleID uint64, input dto.AddModuleToCourseRequest) *netsp.Response[netsp.ErrorDetail] {
@@ -218,4 +278,20 @@ func (uc *CourseUseCase) RemoveModuleFromCourse(ctx context.Context, courseID, m
 	}
 
 	return nil
+}
+
+func uniqueUint64(values []uint64) []uint64 {
+	seen := make(map[uint64]struct{}, len(values))
+	result := make([]uint64, 0, len(values))
+	for _, value := range values {
+		if value == 0 {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
 }

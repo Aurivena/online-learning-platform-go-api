@@ -34,21 +34,14 @@ func (g *OrganizationGateway) CreateOrganization(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("userId")
-	if !exists {
-		errResp := netsp.BuildError(
-			netstatus.CodeUnauthorized,
-			netsp.ErrorDetail{
-				Title:    "Unauthorized",
-				Message:  "User not authenticated",
-				Solution: "Please login first",
-			},
-		)
+	userID, _, ok := currentAuth(c)
+	if !ok {
+		errResp := authRequiredError()
 		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
-	org, errResp := g.orgUC.CreateOrganization(c, userID.(uint64), input)
+	org, errResp := g.orgUC.CreateOrganization(c, userID, input)
 	if errResp != nil {
 		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
@@ -61,22 +54,36 @@ func (g *OrganizationGateway) CreateOrganization(c *gin.Context) {
 }
 
 func (g *OrganizationGateway) ListAllOrganizations(c *gin.Context) {
+	userID, role, ok := currentAuth(c)
+	if !ok {
+		errResp := authRequiredError()
+		netoutput.WriteHTTP(c.Writer, *errResp)
+		return
+	}
+
 	accountID := c.Query("accountId")
 
 	var orgs []entity.Organization
 	var errResp *netsp.Response[netsp.ErrorDetail]
 
 	if accountID != "" {
-		// If accountId query param provided, get organizations for that account
 		id, err := strconv.ParseUint(accountID, 10, 64)
 		if err != nil {
 			c.JSON(400, gin.H{"error": "Invalid accountId"})
 			return
 		}
+		if !isAdmin(role) && id != userID {
+			errResp := forbiddenError("Вы можете запрашивать только свои подразделения")
+			netoutput.WriteHTTP(c.Writer, *errResp)
+			return
+		}
 		orgs, errResp = g.orgUC.ListMyOrganizations(c, id)
 	} else {
-		// Otherwise list all organizations
-		orgs, errResp = g.orgUC.ListAllOrganizations(c)
+		if isAdmin(role) {
+			orgs, errResp = g.orgUC.ListAllOrganizations(c)
+		} else {
+			orgs, errResp = g.orgUC.ListMyOrganizations(c, userID)
+		}
 	}
 
 	if errResp != nil {
@@ -96,21 +103,14 @@ func (g *OrganizationGateway) ListAllOrganizations(c *gin.Context) {
 }
 
 func (g *OrganizationGateway) ListMyOrganizations(c *gin.Context) {
-	userID, exists := c.Get("userId")
-	if !exists {
-		errResp := netsp.BuildError(
-			netstatus.CodeUnauthorized,
-			netsp.ErrorDetail{
-				Title:    "Unauthorized",
-				Message:  "User not authenticated",
-				Solution: "Please login first",
-			},
-		)
+	userID, _, ok := currentAuth(c)
+	if !ok {
+		errResp := authRequiredError()
 		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
-	orgs, errResp := g.orgUC.ListMyOrganizations(c, userID.(uint64))
+	orgs, errResp := g.orgUC.ListMyOrganizations(c, userID)
 	if errResp != nil {
 		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
@@ -130,7 +130,7 @@ func (g *OrganizationGateway) ListMyOrganizations(c *gin.Context) {
 func (g *OrganizationGateway) GetOrganizationByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid organization ID"})
+		c.JSON(400, gin.H{"error": "Некорректный ID подразделения"})
 		return
 	}
 
@@ -149,7 +149,7 @@ func (g *OrganizationGateway) GetOrganizationByID(c *gin.Context) {
 func (g *OrganizationGateway) GetOrganizationByTag(c *gin.Context) {
 	tag := c.Param("tag")
 	if tag == "" {
-		c.JSON(400, gin.H{"error": "Tag is required"})
+		c.JSON(400, gin.H{"error": "Тег обязателен"})
 		return
 	}
 
@@ -168,7 +168,12 @@ func (g *OrganizationGateway) GetOrganizationByTag(c *gin.Context) {
 func (g *OrganizationGateway) UpdateOrganization(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid organization ID"})
+		c.JSON(400, gin.H{"error": "Некорректный ID подразделения"})
+		return
+	}
+
+	if errResp := g.ensureOrganizationManagePermission(c, id); errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
@@ -193,7 +198,12 @@ func (g *OrganizationGateway) UpdateOrganization(c *gin.Context) {
 func (g *OrganizationGateway) DeleteOrganization(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid organization ID"})
+		c.JSON(400, gin.H{"error": "Некорректный ID подразделения"})
+		return
+	}
+
+	if errResp := g.ensureOrganizationManagePermission(c, id); errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
@@ -212,7 +222,12 @@ func (g *OrganizationGateway) DeleteOrganization(c *gin.Context) {
 func (g *OrganizationGateway) AddAccountToOrganization(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid organization ID"})
+		c.JSON(400, gin.H{"error": "Некорректный ID подразделения"})
+		return
+	}
+
+	if errResp := g.ensureOrganizationManagePermission(c, id); errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
@@ -237,7 +252,12 @@ func (g *OrganizationGateway) AddAccountToOrganization(c *gin.Context) {
 func (g *OrganizationGateway) RemoveAccountFromOrganization(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid organization ID"})
+		c.JSON(400, gin.H{"error": "Некорректный ID подразделения"})
+		return
+	}
+
+	if errResp := g.ensureOrganizationManagePermission(c, id); errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
 		return
 	}
 
@@ -259,6 +279,71 @@ func (g *OrganizationGateway) RemoveAccountFromOrganization(c *gin.Context) {
 	})
 }
 
+func (g *OrganizationGateway) ListOrganizationAccounts(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Некорректный ID подразделения"})
+		return
+	}
+
+	if errResp := g.ensureOrganizationManagePermission(c, id); errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
+		return
+	}
+
+	accounts, errResp := g.orgUC.ListOrganizationAccounts(c, id)
+	if errResp != nil {
+		netoutput.WriteHTTP(c.Writer, *errResp)
+		return
+	}
+
+	netoutput.WriteHTTP(c.Writer, netsp.Response[[]dto.OrganizationAccountResponse]{
+		Code: netstatus.CodeSuccess,
+		Data: accounts,
+	})
+}
+
+func (g *OrganizationGateway) ListAccounts(c *gin.Context) {
+	_, role, ok := currentAuth(c)
+	if !ok {
+		errResp := authRequiredError()
+		netoutput.WriteHTTP(c.Writer, *errResp)
+		return
+	}
+	if !isAdmin(role) {
+		errResp := forbiddenError("Список пользователей доступен только администратору")
+		netoutput.WriteHTTP(c.Writer, *errResp)
+		return
+	}
+
+	accounts, err := g.userRepo.GetAll(c.Request.Context())
+	if err != nil {
+		errResp := netsp.BuildError(500, netsp.ErrorDetail{
+			Title:    "Не удалось загрузить пользователей",
+			Message:  "Не удалось получить список учетных записей",
+			Solution: "Повторите попытку позже",
+		})
+		netoutput.WriteHTTP(c.Writer, *errResp)
+		return
+	}
+
+	response := make([]dto.OrganizationAccountResponse, len(accounts))
+	for i, account := range accounts {
+		response[i] = dto.OrganizationAccountResponse{
+			ID:        uint64(account.ID),
+			Email:     account.Email,
+			Username:  account.Username,
+			Role:      account.Role,
+			CreatedAt: account.CreatedAt,
+		}
+	}
+
+	netoutput.WriteHTTP(c.Writer, netsp.Response[[]dto.OrganizationAccountResponse]{
+		Code: netstatus.CodeSuccess,
+		Data: response,
+	})
+}
+
 func (g *OrganizationGateway) convertToOrgResponse(c *gin.Context, org *entity.Organization) dto.OrganizationResponse {
 	ownerAccount, _ := g.userRepo.GetByID(c.Request.Context(), org.OwnerID)
 	ownerDTO := userDTO.AccountResponse{}
@@ -277,7 +362,27 @@ func (g *OrganizationGateway) convertToOrgResponse(c *gin.Context, org *entity.O
 		Title:       org.Title,
 		Tag:         org.Tag,
 		Description: org.Description,
+		ImageURL:    org.ImageURL,
+		HeaderTitle: org.HeaderTitle,
 		Owner:       ownerDTO,
 		CreatedAt:   org.CreatedAt,
 	}
+}
+
+func (g *OrganizationGateway) ensureOrganizationManagePermission(c *gin.Context, orgID uint64) *netsp.Response[netsp.ErrorDetail] {
+	userID, role, ok := currentAuth(c)
+	if !ok {
+		return authRequiredError()
+	}
+	if isAdmin(role) {
+		return nil
+	}
+	org, errResp := g.orgUC.GetOrganization(c, orgID)
+	if errResp != nil {
+		return errResp
+	}
+	if org.OwnerID != userID {
+		return forbiddenError("Изменять подразделение может только владелец или администратор")
+	}
+	return nil
 }

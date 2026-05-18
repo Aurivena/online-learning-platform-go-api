@@ -47,13 +47,13 @@ func SetupRouter(cfg config.Server, mw *middleware.Middleware, userGateway *Gate
 
 	api := gHttp.Group("/api")
 	{
-		api.GET("/files/*filepath", mw.DecodeToken, courseGateway.ServeUploadedObject)
+		api.GET("/files/*filepath", mw.DecodeToken, mw.AuthRequired, courseGateway.ServeUploadedObject)
 
 		auth := api.Group("/auth")
 		{
 			auth.POST("/register", userGateway.Registration)
 			auth.POST("/login", userGateway.Login, mw.SetToken)
-			auth.POST("/logout", nil)
+			auth.POST("/logout", userGateway.Logout)
 		}
 
 		account := api.Group("/account")
@@ -61,23 +61,23 @@ func SetupRouter(cfg config.Server, mw *middleware.Middleware, userGateway *Gate
 			account.GET("/me", mw.DecodeToken, mw.AuthRequired, userGateway.GetProfile)
 		}
 
-		organizations := api.Group("/organizations")
-		{
-			organizations.GET("", mw.DecodeToken, orgGateway.ListAllOrganizations)
-			organizations.POST("", mw.DecodeToken, mw.AuthRequired, orgGateway.CreateOrganization)
-			organizations.GET("/my", mw.DecodeToken, mw.AuthRequired, orgGateway.ListMyOrganizations)
-			organizations.GET("/:id", mw.DecodeToken, orgGateway.GetOrganizationByID)
-			organizations.GET("/tag/:tag", mw.DecodeToken, orgGateway.GetOrganizationByTag)
-			organizations.PUT("/:id", mw.DecodeToken, mw.AuthRequired, orgGateway.UpdateOrganization)
-			organizations.DELETE("/:id", mw.DecodeToken, mw.AuthRequired, orgGateway.DeleteOrganization)
-			organizations.POST("/:id/accounts", mw.DecodeToken, mw.AuthRequired, orgGateway.AddAccountToOrganization)
-			organizations.DELETE("/:id/accounts", mw.DecodeToken, mw.AuthRequired, orgGateway.RemoveAccountFromOrganization)
+		registerDepartmentRoutes := func(departments *gin.RouterGroup) {
+			departments.GET("", mw.DecodeToken, mw.AuthRequired, orgGateway.ListAllOrganizations)
+			departments.POST("", mw.DecodeToken, mw.AuthRequired, orgGateway.CreateOrganization)
+			departments.GET("/my", mw.DecodeToken, mw.AuthRequired, orgGateway.ListMyOrganizations)
+			departments.GET("/:id", mw.DecodeToken, mw.AuthRequired, orgGateway.GetOrganizationByID)
+			departments.GET("/tag/:tag", mw.DecodeToken, mw.AuthRequired, orgGateway.GetOrganizationByTag)
+			departments.PUT("/:id", mw.DecodeToken, mw.AuthRequired, orgGateway.UpdateOrganization)
+			departments.DELETE("/:id", mw.DecodeToken, mw.AuthRequired, orgGateway.DeleteOrganization)
+			departments.GET("/:id/accounts", mw.DecodeToken, mw.AuthRequired, orgGateway.ListOrganizationAccounts)
+			departments.POST("/:id/accounts", mw.DecodeToken, mw.AuthRequired, orgGateway.AddAccountToOrganization)
+			departments.DELETE("/:id/accounts", mw.DecodeToken, mw.AuthRequired, orgGateway.RemoveAccountFromOrganization)
 
-			courses := organizations.Group("/:id/courses")
+			courses := departments.Group("/:id/courses")
 			{
-				courses.GET("", mw.DecodeToken, courseGateway.ListCourses)
+				courses.GET("", mw.DecodeToken, mw.AuthRequired, courseGateway.ListCourses)
 				courses.POST("", mw.DecodeToken, mw.AuthRequired, courseGateway.CreateCourse)
-				courses.GET("/:courseId", mw.DecodeToken, courseGateway.GetCourse)
+				courses.GET("/:courseId", mw.DecodeToken, mw.AuthRequired, courseGateway.GetCourse)
 				courses.PUT("/:courseId", mw.DecodeToken, mw.AuthRequired, courseGateway.UpdateCourse)
 				courses.DELETE("/:courseId", mw.DecodeToken, mw.AuthRequired, courseGateway.DeleteCourse)
 
@@ -85,7 +85,7 @@ func SetupRouter(cfg config.Server, mw *middleware.Middleware, userGateway *Gate
 				{
 					modules.PUT("/reorder", mw.DecodeToken, mw.AuthRequired, courseGateway.ReorderCourseModules)
 					modules.POST("", mw.DecodeToken, mw.AuthRequired, courseGateway.CreateModule)
-					modules.GET("/:moduleId", mw.DecodeToken, courseGateway.GetModule)
+					modules.GET("/:moduleId", mw.DecodeToken, mw.AuthRequired, courseGateway.GetModule)
 					modules.PUT("/:moduleId", mw.DecodeToken, mw.AuthRequired, courseGateway.UpdateModule)
 					modules.DELETE("/:moduleId", mw.DecodeToken, mw.AuthRequired, courseGateway.DeleteModule)
 
@@ -93,9 +93,9 @@ func SetupRouter(cfg config.Server, mw *middleware.Middleware, userGateway *Gate
 					{
 						slides.PUT("/reorder", mw.DecodeToken, mw.AuthRequired, courseGateway.ReorderModuleSlides)
 						slides.POST("", mw.DecodeToken, mw.AuthRequired, courseGateway.CreateSlide)
-						slides.GET("/:slideId/file", mw.DecodeToken, courseGateway.GetSlideFile)
-						slides.GET("/:slideId/:optionId", mw.DecodeToken, courseGateway.CheckSlideOption)
-						slides.GET("/:slideId", mw.DecodeToken, courseGateway.GetSlide)
+						slides.GET("/:slideId/file", mw.DecodeToken, mw.AuthRequired, courseGateway.GetSlideFile)
+						slides.GET("/:slideId/:optionId", mw.DecodeToken, mw.AuthRequired, courseGateway.CheckSlideOption)
+						slides.GET("/:slideId", mw.DecodeToken, mw.AuthRequired, courseGateway.GetSlide)
 						slides.PUT("/:slideId", mw.DecodeToken, mw.AuthRequired, courseGateway.UpdateSlide)
 						slides.DELETE("/:slideId", mw.DecodeToken, mw.AuthRequired, courseGateway.DeleteSlide)
 					}
@@ -103,10 +103,16 @@ func SetupRouter(cfg config.Server, mw *middleware.Middleware, userGateway *Gate
 			}
 		}
 
+		registerDepartmentRoutes(api.Group("/departments"))
+		registerDepartmentRoutes(api.Group("/organizations"))
+
 		courseShortcuts := api.Group("/courses")
 		{
+			courseShortcuts.GET("", mw.DecodeToken, mw.AuthRequired, courseGateway.ListCoursePool)
+			courseShortcuts.PUT("/:courseId/departments", mw.DecodeToken, mw.AuthRequired, courseGateway.UpdateCourseOrganizations)
 			courseShortcuts.POST("/:courseId/modules", mw.DecodeToken, mw.AuthRequired, courseGateway.CreateModule)
 			courseShortcuts.PUT("/:courseId/modules/reorder", mw.DecodeToken, mw.AuthRequired, courseGateway.ReorderCourseModules)
+			courseShortcuts.GET("/:courseId/modules/:moduleId", mw.DecodeToken, mw.AuthRequired, courseGateway.GetModule)
 			courseShortcuts.PUT("/:courseId/modules/:moduleId", mw.DecodeToken, mw.AuthRequired, courseGateway.UpdateModule)
 			courseShortcuts.DELETE("/:courseId/modules/:moduleId", mw.DecodeToken, mw.AuthRequired, courseGateway.DeleteModule)
 		}
@@ -115,11 +121,18 @@ func SetupRouter(cfg config.Server, mw *middleware.Middleware, userGateway *Gate
 		{
 			moduleShortcuts.POST("/:moduleId/slides", mw.DecodeToken, mw.AuthRequired, courseGateway.CreateSlide)
 			moduleShortcuts.PUT("/:moduleId/slides/reorder", mw.DecodeToken, mw.AuthRequired, courseGateway.ReorderModuleSlides)
-			moduleShortcuts.GET("/:moduleId/slides/:slideId/file", mw.DecodeToken, courseGateway.GetSlideFile)
-			moduleShortcuts.GET("/:moduleId/slides/:slideId/:optionId", mw.DecodeToken, courseGateway.CheckSlideOption)
-			moduleShortcuts.GET("/:moduleId/slides/:slideId", mw.DecodeToken, courseGateway.GetSlide)
+			moduleShortcuts.GET("/:moduleId/slides/:slideId/file", mw.DecodeToken, mw.AuthRequired, courseGateway.GetSlideFile)
+			moduleShortcuts.GET("/:moduleId/slides/:slideId/:optionId", mw.DecodeToken, mw.AuthRequired, courseGateway.CheckSlideOption)
+			moduleShortcuts.GET("/:moduleId/slides/:slideId", mw.DecodeToken, mw.AuthRequired, courseGateway.GetSlide)
 			moduleShortcuts.PUT("/:moduleId/slides/:slideId", mw.DecodeToken, mw.AuthRequired, courseGateway.UpdateSlide)
 			moduleShortcuts.DELETE("/:moduleId/slides/:slideId", mw.DecodeToken, mw.AuthRequired, courseGateway.DeleteSlide)
+		}
+
+		admin := api.Group("/admin")
+		{
+			admin.GET("/accounts", mw.DecodeToken, mw.AuthRequired, orgGateway.ListAccounts)
+			admin.GET("/test-results", mw.DecodeToken, mw.AuthRequired, courseGateway.ListAdminTestResults)
+			admin.GET("/course-progress", mw.DecodeToken, mw.AuthRequired, courseGateway.ListAdminCourseProgress)
 		}
 	}
 

@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"online-learning-platform-go-api/internal/organization/entity"
+	userEntity "online-learning-platform-go-api/internal/user/entity"
 )
 
 type OrganizationRepository interface {
@@ -17,5 +18,6 @@ type OrganizationRepository interface {
 	AddAccount(ctx context.Context, orgID, accountID uint64) error
 	RemoveAccount(ctx context.Context, orgID, accountID uint64) error
 	GetAccounts(ctx context.Context, orgID uint64) ([]uint64, error)
+	GetAccountEntities(ctx context.Context, orgID uint64) ([]userEntity.Account, error)
 	IsMember(ctx context.Context, orgID, accountID uint64) (bool, error)
 }

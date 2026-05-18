@@ -125,7 +125,7 @@ SERVER_PORT=8080
 
 JWT_SECRET=super_long_secret_key_change_me
 
-CONFIG_PATH=../resources/config.yaml
+CONFIG_PATH=resources/config.yaml
 
 ACCESS_TOKEN=...
 REFRESH_TOKEN=...

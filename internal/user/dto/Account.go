@@ -51,6 +51,8 @@ type UserOrganizationResponse struct {
 	Title       string    `json:"title"`
 	Tag         string    `json:"tag"`
 	Description string    `json:"description"`
+	ImageURL    string    `json:"image_url"`
+	HeaderTitle string    `json:"header_title"`
 	OwnerID     uint64    `json:"owner_id"`
 	CreatedAt   time.Time `json:"created_at"`
 }

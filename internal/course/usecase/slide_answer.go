@@ -10,7 +10,6 @@ import (
 	"github.com/Aurivena/spond/v4/netsp"
 	"github.com/Aurivena/spond/v4/netstatus"
 
-	"online-learning-platform-go-api/internal/course/dto"
 	"online-learning-platform-go-api/internal/course/entity"
 )
 
@@ -334,25 +333,9 @@ func stringsContainsAny(s string, subs []string) bool {
 	return false
 }
 
-func applyTestIsRight(orig entity.PayloadJSON, isRight bool, parentKey string) entity.PayloadJSON {
-	out := shallowCopyPayload(orig)
-	if parentKey == "" {
-		out["is_right"] = isRight
-		return out
-	}
-	innerOrig, ok := asPayloadMap(orig[parentKey])
-	if !ok {
-		innerOrig = entity.PayloadJSON{}
-	}
-	inner := shallowCopyPayload(innerOrig)
-	inner["is_right"] = isRight
-	out[parentKey] = map[string]interface{}(inner)
-	return out
-}
-
 // CheckTestSlideOption verifies that slideID belongs to moduleID, that the slide is a TEST,
 // persists payload["is_right"] and returns whether the chosen option matches payload["output"].
-func (uc *SlideUseCase) CheckTestSlideOption(ctx context.Context, moduleID, slideID, optionID uint64) (bool, *netsp.Response[netsp.ErrorDetail]) {
+func (uc *SlideUseCase) CheckTestSlideOption(ctx context.Context, accountID, moduleID, slideID, optionID uint64) (bool, *netsp.Response[netsp.ErrorDetail]) {
 	slog.Debug("CheckTestSlideOption", "module_id", moduleID, "slide_id", slideID, "option_id", optionID)
 
 	mod, err := uc.moduleRepo.GetByID(ctx, moduleID)
@@ -472,12 +455,18 @@ func (uc *SlideUseCase) CheckTestSlideOption(ctx context.Context, moduleID, slid
 	}
 
 	isRight := correctID == optionID
-	merged := applyTestIsRight(slide.Payload, isRight, parentKey)
-
-	if errResp := uc.UpdateSlide(ctx, slideID, dto.UpdateSlideRequest{Payload: merged}); errResp != nil {
-		slog.Error("CheckTestSlideOption: UpdateSlide failed", "slide_id", slideID, "is_right", isRight,
-			"net_code", errResp.Code, "title", errResp.Data.Title, "message", errResp.Data.Message)
-		return false, errResp
+	if uc.resultRepo != nil {
+		if err := uc.resultRepo.Upsert(ctx, accountID, moduleID, slideID, optionID, isRight); err != nil {
+			slog.Error("CheckTestSlideOption: upsert result failed", "slide_id", slideID, "module_id", moduleID, "account_id", accountID, "error", err)
+			return false, netsp.BuildError(
+				netstatus.CodeInternalError,
+				netsp.ErrorDetail{
+					Title:    "Failed to Save Test Result",
+					Message:  "Could not persist user test result",
+					Solution: "Please retry later",
+				},
+			)
+		}
 	}
 
 	slog.Info("CheckTestSlideOption: ok", "slide_id", slideID, "option_id", optionID, "is_right", isRight,

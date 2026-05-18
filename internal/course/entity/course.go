@@ -16,13 +16,14 @@ const (
 )
 
 type Course struct {
-	ID             uint64    `gorm:"primaryKey" json:"id"`
-	Title          string    `gorm:"type:varchar(255);not null" json:"title"`
-	Description    string    `gorm:"type:text;not null" json:"description"`
-	Owner          uint64    `gorm:"type:bigint" json:"owner"`
-	OrganizationID uint64    `gorm:"type:bigint" json:"organization_id"`
-	CreatedAt      time.Time `json:"created_at"`
-	Modules        []Module  `gorm:"many2many:course_modules;joinForeignKey:course_id;joinReferences:module_id" json:"modules,omitempty"`
+	ID              uint64    `gorm:"primaryKey" json:"id"`
+	Title           string    `gorm:"type:varchar(255);not null" json:"title"`
+	Description     string    `gorm:"type:text;not null" json:"description"`
+	Owner           uint64    `gorm:"type:bigint" json:"owner"`
+	OrganizationID  uint64    `gorm:"type:bigint" json:"organization_id"`
+	CreatedAt       time.Time `json:"created_at"`
+	Modules         []Module  `gorm:"many2many:course_modules;joinForeignKey:course_id;joinReferences:module_id" json:"modules,omitempty"`
+	OrganizationIDs []uint64  `gorm:"-" json:"organization_ids,omitempty"`
 }
 
 type Module struct {

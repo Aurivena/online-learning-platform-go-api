@@ -16,13 +16,14 @@ type UpdateCourseRequest struct {
 }
 
 type CourseResponse struct {
-	ID             uint64           `json:"id"`
-	Title          string           `json:"title"`
-	Description    string           `json:"description"`
-	Owner          uint64           `json:"owner"`
-	OrganizationID uint64           `json:"organization_id"`
-	CreatedAt      time.Time        `json:"created_at"`
-	Modules        []ModuleResponse `json:"modules,omitempty"`
+	ID              uint64           `json:"id"`
+	Title           string           `json:"title"`
+	Description     string           `json:"description"`
+	Owner           uint64           `json:"owner"`
+	OrganizationID  uint64           `json:"organization_id"`
+	OrganizationIDs []uint64         `json:"organization_ids,omitempty"`
+	CreatedAt       time.Time        `json:"created_at"`
+	Modules         []ModuleResponse `json:"modules,omitempty"`
 }
 
 type ModuleResponse struct {
@@ -67,6 +68,40 @@ type AddModuleToCourseRequest struct {
 	Index int `json:"index" binding:"required,min=0"`
 }
 
+type UpdateCourseOrganizationsRequest struct {
+	OrganizationIDs []uint64 `json:"organization_ids"`
+}
+
 type AddSlideTModuleRequest struct {
 	Index int `json:"index" binding:"required,min=0"`
+}
+
+type AdminTestResultResponse struct {
+	AccountID        uint64    `json:"account_id"`
+	AccountEmail     string    `json:"account_email"`
+	AccountUsername  string    `json:"account_username"`
+	CourseID         uint64    `json:"course_id"`
+	CourseTitle      string    `json:"course_title"`
+	ModuleID         uint64    `json:"module_id"`
+	ModuleTitle      string    `json:"module_title"`
+	SlideID          uint64    `json:"slide_id"`
+	SlideTitle       string    `json:"slide_title"`
+	SelectedOptionID uint64    `json:"selected_option_id"`
+	IsRight          bool      `json:"is_right"`
+	Attempts         int       `json:"attempts"`
+	FirstAttemptAt   time.Time `json:"first_attempt_at"`
+	LastAttemptAt    time.Time `json:"last_attempt_at"`
+}
+
+type AdminCourseProgressResponse struct {
+	AccountID       uint64    `json:"account_id"`
+	AccountEmail    string    `json:"account_email"`
+	AccountUsername string    `json:"account_username"`
+	CourseID        uint64    `json:"course_id"`
+	CourseTitle     string    `json:"course_title"`
+	TotalTests      int       `json:"total_tests"`
+	AttemptedTests  int       `json:"attempted_tests"`
+	PassedTests     int       `json:"passed_tests"`
+	Completed       bool      `json:"completed"`
+	LastActivityAt  time.Time `json:"last_activity_at"`
 }

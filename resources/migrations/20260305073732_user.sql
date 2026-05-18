@@ -27,10 +27,11 @@ CREATE TABLE refresh_tokens
             ON DELETE CASCADE
 );
 
-
--- (пароль 'admin')
-INSERT INTO accounts (email, password_hash, role, username)
-VALUES ('admin@lms.dev', '$2a$12$0/3t0IVWUy79ICq7iZL/KehehrMhk1WvHpIGBebTNuRG8mKl9MxF6', 'ADMIN', 'Admin');
+-- Все демонстрационные пользователи используют пароль 'admin'.
+INSERT INTO accounts (id, email, password_hash, role, username)
+VALUES (1, 'director@detailit.ru', '$2a$12$0/3t0IVWUy79ICq7iZL/KehehrMhk1WvHpIGBebTNuRG8mKl9MxF6', 'ADMIN', 'Директор обучения'),
+       (2, 'master@detailit.ru',   '$2a$12$0/3t0IVWUy79ICq7iZL/KehehrMhk1WvHpIGBebTNuRG8mKl9MxF6', 'ADMIN', 'Мастер участка'),
+       (3, 'worker@detailit.ru',   '$2a$12$0/3t0IVWUy79ICq7iZL/KehehrMhk1WvHpIGBebTNuRG8mKl9MxF6', 'USER',  'Сотрудник производства');
 
 -- +goose StatementEnd
 

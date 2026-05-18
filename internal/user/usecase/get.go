@@ -57,6 +57,8 @@ func (uc *AccountUseCase) GetProfile(ctx context.Context, id uint64) (*dto.UserP
 			Title:       org.Title,
 			Tag:         org.Tag,
 			Description: org.Description,
+			ImageURL:    org.ImageURL,
+			HeaderTitle: org.HeaderTitle,
 			OwnerID:     org.OwnerID,
 			CreatedAt:   org.CreatedAt,
 		})

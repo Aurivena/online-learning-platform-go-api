@@ -17,7 +17,18 @@ func NewCourseRepository(db *gorm.DB) *CourseRepository {
 }
 
 func (r *CourseRepository) Create(ctx context.Context, course *entity.Course) error {
-	return r.db.WithContext(ctx).Create(course).Error
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(course).Error; err != nil {
+			return err
+		}
+		if course.OrganizationID == 0 {
+			return nil
+		}
+		return tx.Table("course_organizations").Create(map[string]interface{}{
+			"course_id":       course.ID,
+			"organization_id": course.OrganizationID,
+		}).Error
+	})
 }
 
 func (r *CourseRepository) GetByID(ctx context.Context, id uint64) (*entity.Course, error) {
@@ -33,28 +44,61 @@ func (r *CourseRepository) GetByID(ctx context.Context, id uint64) (*entity.Cour
 			return nil, err
 		}
 	}
+	ids, err := r.GetOrganizationIDs(ctx, course.ID)
+	if err != nil {
+		return nil, err
+	}
+	course.OrganizationIDs = ids
 	return &course, nil
 }
 
 func (r *CourseRepository) GetByOrganization(ctx context.Context, orgID uint64) ([]entity.Course, error) {
 	var courses []entity.Course
 	if err := r.db.WithContext(ctx).
-		Where("organization_id = ?", orgID).
+		Table("courses").
+		Select("courses.*").
+		Joins("inner join course_organizations co on co.course_id = courses.id").
+		Where("co.organization_id = ?", orgID).
+		Order("courses.created_at desc").
+		Find(&courses).Error; err != nil {
+		return nil, err
+	}
+	if err := r.loadCourses(ctx, courses); err != nil {
+		return nil, err
+	}
+	return courses, nil
+}
+
+func (r *CourseRepository) GetAll(ctx context.Context) ([]entity.Course, error) {
+	var courses []entity.Course
+	if err := r.db.WithContext(ctx).
 		Order("created_at desc").
 		Find(&courses).Error; err != nil {
 		return nil, err
 	}
+	if err := r.loadCourses(ctx, courses); err != nil {
+		return nil, err
+	}
+	return courses, nil
+}
+
+func (r *CourseRepository) loadCourses(ctx context.Context, courses []entity.Course) error {
 	for i := range courses {
 		if err := r.db.WithContext(ctx).Model(&courses[i]).Order("course_modules.index").Association("Modules").Find(&courses[i].Modules); err != nil {
-			return nil, err
+			return err
 		}
 		for j := range courses[i].Modules {
 			if err := r.db.WithContext(ctx).Model(&courses[i].Modules[j]).Order("module_slides.index").Association("Slides").Find(&courses[i].Modules[j].Slides); err != nil {
-				return nil, err
+				return err
 			}
 		}
+		ids, err := r.GetOrganizationIDs(ctx, courses[i].ID)
+		if err != nil {
+			return err
+		}
+		courses[i].OrganizationIDs = ids
 	}
-	return courses, nil
+	return nil
 }
 
 func (r *CourseRepository) Update(ctx context.Context, course *entity.Course) error {
@@ -63,6 +107,57 @@ func (r *CourseRepository) Update(ctx context.Context, course *entity.Course) er
 
 func (r *CourseRepository) Delete(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Delete(&entity.Course{}, id).Error
+}
+
+func (r *CourseRepository) SetOrganizations(ctx context.Context, courseID uint64, organizationIDs []uint64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Table("course_organizations").Where("course_id = ?", courseID).Delete(&struct{}{}).Error; err != nil {
+			return err
+		}
+		for _, orgID := range organizationIDs {
+			if orgID == 0 {
+				continue
+			}
+			if err := tx.Table("course_organizations").Create(map[string]interface{}{
+				"course_id":       courseID,
+				"organization_id": orgID,
+			}).Error; err != nil {
+				return err
+			}
+		}
+		if len(organizationIDs) > 0 {
+			return tx.Model(&entity.Course{}).Where("id = ?", courseID).Update("organization_id", organizationIDs[0]).Error
+		}
+		return nil
+	})
+}
+
+func (r *CourseRepository) GetOrganizationIDs(ctx context.Context, courseID uint64) ([]uint64, error) {
+	var rows []struct {
+		OrganizationID uint64 `gorm:"column:organization_id"`
+	}
+	if err := r.db.WithContext(ctx).
+		Table("course_organizations").
+		Select("organization_id").
+		Where("course_id = ?", courseID).
+		Order("organization_id").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	ids := make([]uint64, len(rows))
+	for i, row := range rows {
+		ids[i] = row.OrganizationID
+	}
+	return ids, nil
+}
+
+func (r *CourseRepository) IsLinkedToOrganization(ctx context.Context, courseID, orgID uint64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Table("course_organizations").
+		Where("course_id = ? AND organization_id = ?", courseID, orgID).
+		Count(&count).Error
+	return count > 0, err
 }
 
 func (r *CourseRepository) AddModule(ctx context.Context, courseID, moduleID uint64, index int) error {
@@ -76,7 +171,7 @@ func (r *CourseRepository) AddModule(ctx context.Context, courseID, moduleID uin
 func (r *CourseRepository) RemoveModule(ctx context.Context, courseID, moduleID uint64) error {
 	return r.db.WithContext(ctx).Table("course_modules").
 		Where("course_id = ? AND module_id = ?", courseID, moduleID).
-		Delete(nil).Error
+		Delete(&struct{}{}).Error
 }
 
 func (r *CourseRepository) NextModuleIndex(ctx context.Context, courseID uint64) (int, error) {
@@ -143,6 +238,24 @@ func (r *ModuleRepository) GetByID(ctx context.Context, id uint64) (*entity.Modu
 	return &module, nil
 }
 
+func (r *ModuleRepository) GetCourseIDByModuleID(ctx context.Context, moduleID uint64) (uint64, error) {
+	var row struct {
+		CourseID uint64 `gorm:"column:course_id"`
+	}
+	if err := r.db.WithContext(ctx).
+		Table("course_modules").
+		Select("course_id").
+		Where("module_id = ?", moduleID).
+		Limit(1).
+		Scan(&row).Error; err != nil {
+		return 0, err
+	}
+	if row.CourseID == 0 {
+		return 0, gorm.ErrRecordNotFound
+	}
+	return row.CourseID, nil
+}
+
 func (r *ModuleRepository) Update(ctx context.Context, module *entity.Module) error {
 	return r.db.WithContext(ctx).Model(module).Updates(module).Error
 }
@@ -162,7 +275,7 @@ func (r *ModuleRepository) AddSlide(ctx context.Context, moduleID, slideID uint6
 func (r *ModuleRepository) RemoveSlide(ctx context.Context, moduleID, slideID uint64) error {
 	return r.db.WithContext(ctx).Table("module_slides").
 		Where("module_id = ? AND slide_id = ?", moduleID, slideID).
-		Delete(nil).Error
+		Delete(&struct{}{}).Error
 }
 
 func (r *ModuleRepository) NextSlideIndex(ctx context.Context, moduleID uint64) (int, error) {

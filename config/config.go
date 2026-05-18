@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -10,7 +11,7 @@ import (
 )
 
 var (
-	MigrationsDirForPostgres = "../resources/migrations"
+	MigrationsDirForPostgres = "resources/migrations"
 	AccessTokenTimestamp     = 0
 	RefreshTokenTimestamp    = 0
 )
@@ -56,8 +57,20 @@ func NewConfig() (*Config, error) {
 
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
-		configPath = "../resources/config.yaml"
+		var err error
+		configPath, err = findProjectPath("resources/config.yaml")
+		if err != nil {
+			slog.Error(err.Error())
+			return nil, err
+		}
 	}
+
+	migrationsDir, err := findProjectPath("resources/migrations")
+	if err != nil {
+		slog.Error(err.Error())
+		return nil, err
+	}
+	MigrationsDirForPostgres = migrationsDir
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -75,6 +88,25 @@ func NewConfig() (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func findProjectPath(rel string) (string, error) {
+	if filepath.IsAbs(rel) {
+		return rel, nil
+	}
+	dir, _ := os.Getwd()
+	for {
+		path := filepath.Join(dir, rel)
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return "", fmt.Errorf("project path %q not found from current directory", rel)
 }
 
 func findEnvFile() string {

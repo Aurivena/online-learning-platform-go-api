@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -53,6 +55,24 @@ func overlayPayload(dst, src entity.PayloadJSON) {
 	}
 }
 
+func payloadHasFileReference(p entity.PayloadJSON) bool {
+	if p == nil {
+		return false
+	}
+	keys := []string{"object_key", "objectKey", "file_src", "fileSrc", "url"}
+	for i := range keys {
+		v, ok := p[keys[i]]
+		if !ok {
+			continue
+		}
+		s, ok := v.(string)
+		if ok && strings.TrimSpace(s) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func (g *CourseGateway) publicObjectURL(objectKey string) string {
 	base := strings.TrimRight(strings.TrimSpace(g.filesPublicBase), "/")
 	if base == "" || g.files == nil || objectKey == "" {
@@ -94,11 +114,13 @@ func (g *CourseGateway) uploadSlideFile(ctx context.Context, moduleID uint64, pa
 
 	ct := fh.Header.Get("Content-Type")
 	if err := g.files.Put(ctx, objectKey, rc, size, ct); err != nil {
-		// MinIO misconfiguration (e.g. Access Denied) should not block saving the slide:
-		// filename is already on the payload from multipart binding; media URL may be absent until storage works.
-		slog.Warn("slide file: object storage upload failed, saving slide metadata only",
+		slog.Warn("slide file: object storage upload failed",
 			"error", err, "object_key", objectKey, "original_name", fh.Filename)
-		return nil
+		return netsp.BuildError(http.StatusInternalServerError, netsp.ErrorDetail{
+			Title:    "File Upload Failed",
+			Message:  "Could not store slide file in object storage",
+			Solution: "Check object storage configuration and retry upload",
+		})
 	}
 
 	(*payload)["object_key"] = objectKey
@@ -168,6 +190,9 @@ func slideEntityToResponse(s entity.Slide) dto.SlideResponse {
 
 // writeObjectKeyResponse streams an object from storage by key (slides/...). Returns false if response already sent with error.
 func (g *CourseGateway) writeObjectKeyResponse(c *gin.Context, objectKey string) bool {
+	if g.writeLocalCourseFileResponse(c, objectKey) {
+		return true
+	}
 	if g.files == nil {
 		c.Status(http.StatusServiceUnavailable)
 		return false
@@ -194,6 +219,71 @@ func (g *CourseGateway) writeObjectKeyResponse(c *gin.Context, objectKey string)
 	return true
 }
 
+func (g *CourseGateway) writeLocalCourseFileResponse(c *gin.Context, objectKey string) bool {
+	localPath, ok := resolveLocalCourseFilePath(objectKey)
+	if !ok {
+		return false
+	}
+
+	f, err := os.Open(localPath)
+	if err != nil {
+		c.Status(http.StatusNotFound)
+		return true
+	}
+	defer f.Close()
+
+	if info, err := f.Stat(); err == nil {
+		if ct := mime.TypeByExtension(filepath.Ext(localPath)); ct != "" {
+			c.Header("Content-Type", ct)
+		}
+		c.Header("Content-Length", fmt.Sprintf("%d", info.Size()))
+		c.Header("Content-Disposition", "inline")
+		http.ServeContent(c.Writer, c.Request, filepath.Base(localPath), info.ModTime(), f)
+		return true
+	}
+
+	c.Status(http.StatusNotFound)
+	return true
+}
+
+func resolveLocalCourseFilePath(objectKey string) (string, bool) {
+	const prefix = "course_files/"
+	objectKey = strings.Trim(strings.TrimSpace(objectKey), "/")
+	if objectKey == "" || !strings.HasPrefix(objectKey, prefix) {
+		return "", false
+	}
+
+	rel := filepath.Clean(strings.TrimPrefix(objectKey, prefix))
+	if rel == "." || rel == "" || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
+		return "", true
+	}
+
+	candidates := []string{
+		filepath.Join("resources", "course_files"),
+		filepath.Join("..", "resources", "course_files"),
+	}
+
+	for _, base := range candidates {
+		absBase, err := filepath.Abs(base)
+		if err != nil {
+			continue
+		}
+		target := filepath.Join(absBase, rel)
+		absTarget, err := filepath.Abs(target)
+		if err != nil {
+			continue
+		}
+		if absTarget != absBase && !strings.HasPrefix(absTarget, absBase+string(os.PathSeparator)) {
+			continue
+		}
+		if info, err := os.Stat(absTarget); err == nil && !info.IsDir() {
+			return absTarget, true
+		}
+	}
+
+	return "", true
+}
+
 // ServeUploadedObject streams a file from object storage. Path must be the object_key (e.g. slides/<moduleId>/<uuid>.ext).
 func (g *CourseGateway) ServeUploadedObject(c *gin.Context) {
 	raw := strings.TrimPrefix(c.Param("filepath"), "/")
@@ -210,11 +300,11 @@ func (g *CourseGateway) GetSlideFile(c *gin.Context) {
 	moduleID, errMod := strconv.ParseUint(c.Param("moduleId"), 10, 64)
 	slideID, errSlide := strconv.ParseUint(c.Param("slideId"), 10, 64)
 	if errSlide != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid slide ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Некорректный ID урока"})
 		return
 	}
 	if errMod != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid module ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Некорректный ID модуля"})
 		return
 	}
 
@@ -231,7 +321,7 @@ func (g *CourseGateway) GetSlideFile(c *gin.Context) {
 		}
 	}
 	if !found {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Slide not found in this module"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Урок не найден в этом модуле"})
 		return
 	}
 

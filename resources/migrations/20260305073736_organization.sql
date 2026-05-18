@@ -10,7 +10,6 @@ CREATE TABLE organizations
     created_at  timestamp default now()
 );
 
-
 CREATE TABLE organization_accounts
 (
     organization_id BIGINT NOT NULL,
@@ -31,12 +30,18 @@ CREATE TABLE organization_accounts
 CREATE INDEX idx_organization_accounts_account_id ON organization_accounts (account_id);
 CREATE INDEX idx_organization_accounts_organization_id ON organization_accounts (organization_id);
 
-
-INSERT INTO organizations (title, tag, description, owner_id, created_at)
-VALUES ('org1-test','HEROBRIN','Майн',1,now());
+INSERT INTO organizations (id, title, tag, description, owner_id, created_at)
+VALUES (1,
+        'ООО "ДетаЛит"',
+        'detailit',
+        'Производственное подразделение для обучения сотрудников литейного участка, механической обработки и отдела технического контроля.',
+        1,
+        now());
 
 INSERT INTO organization_accounts (organization_id, account_id)
-VALUES (1,1);
+VALUES (1, 1),
+       (1, 2),
+       (1, 3);
 
 -- +goose StatementEnd
 

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"online-learning-platform-go-api/internal/organization/dto"
 	"online-learning-platform-go-api/internal/organization/entity"
+	"strings"
 
 	"github.com/Aurivena/spond/v4/netsp"
 )
@@ -19,6 +20,7 @@ type OrganizationUseCaseInterface interface {
 	DeleteOrganization(ctx context.Context, id uint64) *netsp.Response[netsp.ErrorDetail]
 	AddAccountToOrganization(ctx context.Context, orgID, accountID uint64) *netsp.Response[netsp.ErrorDetail]
 	RemoveAccountFromOrganization(ctx context.Context, orgID, accountID uint64) *netsp.Response[netsp.ErrorDetail]
+	ListOrganizationAccounts(ctx context.Context, orgID uint64) ([]dto.OrganizationAccountResponse, *netsp.Response[netsp.ErrorDetail])
 }
 
 type OrganizationUseCase struct {
@@ -29,11 +31,21 @@ func NewOrganizationUseCase(repo OrganizationRepository) *OrganizationUseCase {
 	return &OrganizationUseCase{repo: repo}
 }
 
+func generateDetailitHeader(seed string) string {
+	return `ДетаЛит`
+}
+
 func (uc *OrganizationUseCase) CreateOrganization(ctx context.Context, ownerID uint64, input dto.CreateOrganizationRequest) (*entity.Organization, *netsp.Response[netsp.ErrorDetail]) {
+	headerTitle := strings.TrimSpace(input.HeaderTitle)
+	if headerTitle == "" {
+		headerTitle = generateDetailitHeader(input.Tag + ":" + input.Title)
+	}
 	org := &entity.Organization{
 		Title:       input.Title,
 		Tag:         input.Tag,
 		Description: input.Description,
+		ImageURL:    input.ImageURL,
+		HeaderTitle: headerTitle,
 		OwnerID:     ownerID,
 	}
 
@@ -41,9 +53,9 @@ func (uc *OrganizationUseCase) CreateOrganization(ctx context.Context, ownerID u
 		return nil, netsp.BuildError(
 			http.StatusBadRequest,
 			netsp.ErrorDetail{
-				Title:    "Failed to Create Organization",
-				Message:  "Could not create organization in database",
-				Solution: "Tag may already exist or check your input",
+				Title:    "Не удалось создать подразделение",
+				Message:  "Не удалось сохранить подразделение в базе данных",
+				Solution: "Проверьте данные: тег может быть уже занят",
 			},
 		)
 	}
@@ -53,9 +65,9 @@ func (uc *OrganizationUseCase) CreateOrganization(ctx context.Context, ownerID u
 		return nil, netsp.BuildError(
 			http.StatusInternalServerError,
 			netsp.ErrorDetail{
-				Title:    "Failed to Add Owner to Organization",
-				Message:  "Could not add owner account to organization",
-				Solution: "Please try again later",
+				Title:    "Не удалось добавить владельца",
+				Message:  "Не удалось добавить владельца в подразделение",
+				Solution: "Повторите попытку позже",
 			},
 		)
 	}
@@ -69,9 +81,9 @@ func (uc *OrganizationUseCase) GetOrganization(ctx context.Context, id uint64) (
 		return nil, netsp.BuildError(
 			http.StatusNotFound,
 			netsp.ErrorDetail{
-				Title:    "Organization Not Found",
-				Message:  "The requested organization does not exist",
-				Solution: "Please check the organization ID and try again",
+				Title:    "Подразделение не найдено",
+				Message:  "Запрошенное подразделение не существует",
+				Solution: "Проверьте ID подразделения и повторите попытку",
 			},
 		)
 	}
@@ -85,9 +97,9 @@ func (uc *OrganizationUseCase) GetOrganizationByTag(ctx context.Context, tag str
 		return nil, netsp.BuildError(
 			http.StatusNotFound,
 			netsp.ErrorDetail{
-				Title:    "Organization Not Found",
-				Message:  "No organization found with this tag",
-				Solution: "Please check the tag and try again",
+				Title:    "Подразделение не найдено",
+				Message:  "Подразделение с таким тегом не найдено",
+				Solution: "Проверьте тег и повторите попытку",
 			},
 		)
 	}
@@ -101,9 +113,9 @@ func (uc *OrganizationUseCase) ListMyOrganizations(ctx context.Context, ownerID 
 		return nil, netsp.BuildError(
 			http.StatusInternalServerError,
 			netsp.ErrorDetail{
-				Title:    "Failed to Fetch Organizations",
-				Message:  "Could not retrieve organizations from database",
-				Solution: "Please try again later",
+				Title:    "Не удалось загрузить подразделения",
+				Message:  "Не удалось получить список подразделений из базы данных",
+				Solution: "Повторите попытку позже",
 			},
 		)
 	}
@@ -121,9 +133,9 @@ func (uc *OrganizationUseCase) ListAllOrganizations(ctx context.Context) ([]enti
 		return nil, netsp.BuildError(
 			http.StatusInternalServerError,
 			netsp.ErrorDetail{
-				Title:    "Failed to Fetch Organizations",
-				Message:  "Could not retrieve organizations from database",
-				Solution: "Please try again later",
+				Title:    "Не удалось загрузить подразделения",
+				Message:  "Не удалось получить список подразделений из базы данных",
+				Solution: "Повторите попытку позже",
 			},
 		)
 	}
@@ -141,9 +153,9 @@ func (uc *OrganizationUseCase) UpdateOrganization(ctx context.Context, id uint64
 		return netsp.BuildError(
 			http.StatusNotFound,
 			netsp.ErrorDetail{
-				Title:    "Organization Not Found",
-				Message:  "The requested organization does not exist",
-				Solution: "Please check the organization ID and try again",
+				Title:    "Подразделение не найдено",
+				Message:  "Запрошенное подразделение не существует",
+				Solution: "Проверьте ID подразделения и повторите попытку",
 			},
 		)
 	}
@@ -151,17 +163,30 @@ func (uc *OrganizationUseCase) UpdateOrganization(ctx context.Context, id uint64
 	if input.Title != "" {
 		org.Title = input.Title
 	}
+	if input.Tag != "" {
+		org.Tag = input.Tag
+	}
 	if input.Description != "" {
 		org.Description = input.Description
+	}
+	if input.ImageURL != nil {
+		org.ImageURL = *input.ImageURL
+	}
+	if input.HeaderTitle != nil {
+		headerTitle := strings.TrimSpace(*input.HeaderTitle)
+		if headerTitle == "" {
+			headerTitle = generateDetailitHeader(org.Tag + ":" + org.Title)
+		}
+		org.HeaderTitle = headerTitle
 	}
 
 	if err := uc.repo.Update(ctx, org); err != nil {
 		return netsp.BuildError(
 			http.StatusInternalServerError,
 			netsp.ErrorDetail{
-				Title:    "Failed to Update Organization",
-				Message:  "Could not update organization in database",
-				Solution: "Please try again later",
+				Title:    "Не удалось обновить подразделение",
+				Message:  "Не удалось обновить подразделение в базе данных",
+				Solution: "Повторите попытку позже",
 			},
 		)
 	}
@@ -174,9 +199,9 @@ func (uc *OrganizationUseCase) DeleteOrganization(ctx context.Context, id uint64
 		return netsp.BuildError(
 			http.StatusInternalServerError,
 			netsp.ErrorDetail{
-				Title:    "Failed to Delete Organization",
-				Message:  "Could not delete organization from database",
-				Solution: "Please try again later",
+				Title:    "Не удалось удалить подразделение",
+				Message:  "Не удалось удалить подразделение из базы данных",
+				Solution: "Повторите попытку позже",
 			},
 		)
 	}
@@ -189,9 +214,9 @@ func (uc *OrganizationUseCase) AddAccountToOrganization(ctx context.Context, org
 		return netsp.BuildError(
 			http.StatusNotFound,
 			netsp.ErrorDetail{
-				Title:    "Organization Not Found",
-				Message:  "The requested organization does not exist",
-				Solution: "Please check the organization ID and try again",
+				Title:    "Подразделение не найдено",
+				Message:  "Запрошенное подразделение не существует",
+				Solution: "Проверьте ID подразделения и повторите попытку",
 			},
 		)
 	}
@@ -200,9 +225,9 @@ func (uc *OrganizationUseCase) AddAccountToOrganization(ctx context.Context, org
 		return netsp.BuildError(
 			http.StatusBadRequest,
 			netsp.ErrorDetail{
-				Title:    "Failed to Add Account",
-				Message:  "Could not add account to organization",
-				Solution: "Account may already be in organization",
+				Title:    "Не удалось добавить сотрудника",
+				Message:  "Не удалось добавить учетную запись в подразделение",
+				Solution: "Возможно, сотрудник уже добавлен в это подразделение",
 			},
 		)
 	}
@@ -215,12 +240,49 @@ func (uc *OrganizationUseCase) RemoveAccountFromOrganization(ctx context.Context
 		return netsp.BuildError(
 			http.StatusInternalServerError,
 			netsp.ErrorDetail{
-				Title:    "Failed to Remove Account",
-				Message:  "Could not remove account from organization",
-				Solution: "Please try again later",
+				Title:    "Не удалось удалить сотрудника",
+				Message:  "Не удалось удалить учетную запись из подразделения",
+				Solution: "Повторите попытку позже",
 			},
 		)
 	}
 
 	return nil
+}
+
+func (uc *OrganizationUseCase) ListOrganizationAccounts(ctx context.Context, orgID uint64) ([]dto.OrganizationAccountResponse, *netsp.Response[netsp.ErrorDetail]) {
+	if _, err := uc.repo.GetByID(ctx, orgID); err != nil {
+		return nil, netsp.BuildError(
+			http.StatusNotFound,
+			netsp.ErrorDetail{
+				Title:    "Подразделение не найдено",
+				Message:  "Запрошенное подразделение не существует",
+				Solution: "Проверьте ID подразделения и повторите попытку",
+			},
+		)
+	}
+
+	accounts, err := uc.repo.GetAccountEntities(ctx, orgID)
+	if err != nil {
+		return nil, netsp.BuildError(
+			http.StatusInternalServerError,
+			netsp.ErrorDetail{
+				Title:    "Не удалось загрузить сотрудников",
+				Message:  "Не удалось получить список участников подразделения",
+				Solution: "Повторите попытку позже",
+			},
+		)
+	}
+
+	result := make([]dto.OrganizationAccountResponse, len(accounts))
+	for i, account := range accounts {
+		result[i] = dto.OrganizationAccountResponse{
+			ID:        uint64(account.ID),
+			Email:     account.Email,
+			Username:  account.Username,
+			Role:      account.Role,
+			CreatedAt: account.CreatedAt,
+		}
+	}
+	return result, nil
 }

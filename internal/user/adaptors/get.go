@@ -34,3 +34,11 @@ func (r *AccountRepository) GetByUsername(ctx context.Context, username string) 
 
 	return &account, nil
 }
+
+func (r *AccountRepository) GetAll(ctx context.Context) ([]entity.Account, error) {
+	var accounts []entity.Account
+	err := r.db.WithContext(ctx).
+		Order("created_at desc").
+		Find(&accounts).Error
+	return accounts, err
+}

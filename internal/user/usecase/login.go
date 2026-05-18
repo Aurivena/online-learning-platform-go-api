@@ -21,9 +21,9 @@ func (u *AccountUseCase) Login(ctx context.Context, input dto.LoginRequest) (*Lo
 		return nil, netsp.BuildError(
 			netstatus.CodeNotFound,
 			netsp.ErrorDetail{
-				Title:    "Account Not Found",
-				Message:  "No account found with this email",
-				Solution: "Please check your email or register a new account",
+				Title:    "Учетная запись не найдена",
+				Message:  "Пользователь с таким email не найден",
+				Solution: "Проверьте email и пароль или обратитесь к администратору подразделения",
 			},
 		)
 	}
@@ -32,9 +32,9 @@ func (u *AccountUseCase) Login(ctx context.Context, input dto.LoginRequest) (*Lo
 		return nil, netsp.BuildError(
 			netstatus.CodeUnauthorized,
 			netsp.ErrorDetail{
-				Title:    "Invalid Password",
-				Message:  "The password is incorrect",
-				Solution: "Please check your password and try again",
+				Title:    "Неверный пароль",
+				Message:  "Пароль указан неверно",
+				Solution: "Проверьте пароль и повторите попытку",
 			},
 		)
 	}

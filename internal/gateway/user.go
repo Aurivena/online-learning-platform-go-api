@@ -43,12 +43,29 @@ func (g *Gateway) Login(c *gin.Context) {
 	c.Set("userId", loginResult.Account.ID)
 	c.Set("role", loginResult.Account.Role)
 	c.Next()
+	if c.IsAborted() {
+		return
+	}
 
-	accessToken, _ := c.Get("accessToken")
-	refreshToken, _ := c.Get("refreshToken")
+	accessToken, okAccess := c.Get("accessToken")
+	refreshToken, okRefresh := c.Get("refreshToken")
+	accessStr, okAccessType := accessToken.(string)
+	refreshStr, okRefreshType := refreshToken.(string)
+	if !okAccess || !okRefresh || !okAccessType || !okRefreshType || accessStr == "" || refreshStr == "" {
+		errResp := netsp.BuildError(
+			500,
+			netsp.ErrorDetail{
+				Title:    "Token Generation Failed",
+				Message:  "Login succeeded but token generation failed",
+				Solution: "Please retry login later",
+			},
+		)
+		netoutput.WriteHTTP(c.Writer, *errResp)
+		return
+	}
 
-	loginResult.Response.AccessToken = accessToken.(string)
-	loginResult.Response.RefreshToken = refreshToken.(string)
+	loginResult.Response.AccessToken = accessStr
+	loginResult.Response.RefreshToken = refreshStr
 
 	netoutput.WriteHTTP(c.Writer, netsp.Response[dto.AuthResponse]{
 		Code: netstatus.CodeSuccess,
@@ -80,5 +97,15 @@ func (g *Gateway) GetProfile(c *gin.Context) {
 	netoutput.WriteHTTP(c.Writer, netsp.Response[dto.UserProfileResponse]{
 		Code: netstatus.CodeSuccess,
 		Data: *profile,
+	})
+}
+
+func (g *Gateway) Logout(c *gin.Context) {
+	c.SetCookie("access_token", "", -1, "/", "", false, true)
+	c.SetCookie("refresh_token", "", -1, "/", "", false, true)
+
+	netoutput.WriteHTTP(c.Writer, netsp.Response[any]{
+		Code: netstatus.CodeSuccess,
+		Data: nil,
 	})
 }
